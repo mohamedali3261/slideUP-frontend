@@ -5,7 +5,7 @@ export const restaurantFoodTemplate: PresentationTemplate = {
   titleKey: 'Restaurant & Food',
   categoryKey: 'templates.restaurant',
   slideCount: 8,
-  image: '/placeholder.svg',
+  image: 'https://images.pexels.com/photos/262978/pexels-photo-262978.jpeg?auto=compress&cs=tinysrgb&w=800',
   description: 'قالب مطاعم وأطعمة أنيق لعرض القوائم والأطباق بطريقة شهية وجذابة',
   descriptionEn: 'Elegant restaurant and food template for showcasing menus and dishes attractively',
   tags: ['Creative', 'Branding', 'Packaging'],

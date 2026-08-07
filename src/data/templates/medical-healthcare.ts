@@ -5,7 +5,7 @@ export const medicalHealthcareTemplate: PresentationTemplate = {
   titleKey: 'Medical & Healthcare',
   categoryKey: 'templates.medical',
   slideCount: 10,
-  image: '/placeholder.svg',
+  image: 'https://images.pexels.com/photos/4173418/pexels-photo-4173418.jpeg?auto=compress&cs=tinysrgb&w=800',
   description: 'قالب طبي احترافي لعرض المعلومات الصحية والطبية بشكل واضح ومنظم',
   descriptionEn: 'Professional medical template for presenting health and medical information clearly',
   tags: ['Business', 'Technology', 'Branding'],

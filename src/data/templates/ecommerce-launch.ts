@@ -5,7 +5,7 @@ export const ecommerceTemplate: PresentationTemplate = {
   titleKey: 'E-Commerce Product Launch',
   categoryKey: 'templates.ecommerce',
   slideCount: 10,
-  image: '/placeholder.svg',
+  image: 'https://images.pexels.com/photos/3935702/pexels-photo-3935702.jpeg?auto=compress&cs=tinysrgb&w=800',
   description: 'قالب مميز لإطلاق المنتجات والمتاجر الإلكترونية بتصميم عصري وجذاب',
   descriptionEn: 'Distinctive template for launching products and e-commerce stores with modern design',
   tags: ['Marketing', 'Business', 'Startup'],

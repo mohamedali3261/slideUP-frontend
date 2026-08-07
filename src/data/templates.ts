@@ -172,6 +172,7 @@ export interface PresentationTemplate {
   description?: string;
   descriptionEn?: string;
   tags?: string[];
+  isNew?: boolean;
 }
 
 // Import all templates
@@ -183,6 +184,11 @@ import { ecommerceTemplate } from './templates/ecommerce-launch';
 import { realEstateTemplate } from './templates/real-estate';
 import { eventConferenceTemplate } from './templates/event-conference';
 import { restaurantFoodTemplate } from './templates/restaurant-food';
+import { aiIntelligenceTemplate } from './templates/ai-intelligence';
+import { financeReportTemplate } from './templates/finance-report';
+import { sportsEnergyTemplate } from './templates/sports-energy';
+import { architecturePortfolioTemplate } from './templates/architecture-portfolio';
+import { travelAdventureTemplate } from './templates/travel-adventure';
 
 export const templates: PresentationTemplate[] = [
   dataAnalyticsTemplate,
@@ -193,6 +199,11 @@ export const templates: PresentationTemplate[] = [
   realEstateTemplate,
   eventConferenceTemplate,
   restaurantFoodTemplate,
+  aiIntelligenceTemplate,
+  financeReportTemplate,
+  sportsEnergyTemplate,
+  architecturePortfolioTemplate,
+  travelAdventureTemplate,
 ];
 
 export const getTemplateById = (id: string): PresentationTemplate | undefined => {

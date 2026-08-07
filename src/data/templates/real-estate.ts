@@ -5,7 +5,7 @@ export const realEstateTemplate: PresentationTemplate = {
   titleKey: 'Real Estate Showcase',
   categoryKey: 'templates.realestate',
   slideCount: 8,
-  image: '/placeholder.svg',
+  image: 'https://images.pexels.com/photos/106399/pexels-photo-106399.jpeg?auto=compress&cs=tinysrgb&w=800',
   description: 'قالب عرض عقاري فاخر لتسويق العقارات والمشاريع السكنية بشكل احترافي',
   descriptionEn: 'Luxury real estate template for marketing properties and residential projects professionally',
   tags: ['Business', 'Marketing', 'Packaging'],

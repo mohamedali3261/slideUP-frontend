@@ -1,5 +1,7 @@
 import { cn } from "@/lib/utils";
 
+const LOADING_GIF = 'https://media.giphy.com/media/3o7abAHdYvZdBNnGZq/giphy.gif';
+
 interface SkeletonCardProps {
   className?: string;
   variant?: 'template' | 'presentation' | 'slide' | 'image';
@@ -9,8 +11,16 @@ export const SkeletonCard = ({ className, variant = 'template' }: SkeletonCardPr
   if (variant === 'template') {
     return (
       <div className={cn("rounded-xl border bg-card overflow-hidden", className)}>
-        {/* Image skeleton */}
-        <div className="w-full h-48 bg-muted animate-pulse" />
+        {/* Image skeleton with GIF */}
+        <div className="relative w-full h-48 bg-muted overflow-hidden">
+          <img
+            src={LOADING_GIF}
+            alt="Loading"
+            className="w-full h-full object-cover opacity-50"
+            draggable={false}
+          />
+          <div className="absolute inset-0 bg-gradient-to-t from-card/40 to-transparent" />
+        </div>
         
         {/* Content skeleton */}
         <div className="p-4 space-y-3">

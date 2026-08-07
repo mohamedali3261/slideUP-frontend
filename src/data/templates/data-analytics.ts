@@ -3,9 +3,9 @@ import { PresentationTemplate } from '../templates';
 export const dataAnalyticsTemplate: PresentationTemplate = {
   id: 'data-analytics',
   titleKey: 'Data Analytics Dashboard',
-  categoryKey: 'templates.analytics',
+  categoryKey: 'templates.technology',
   slideCount: 10,
-  image: '/placeholder.svg',
+  image: 'https://images.pexels.com/photos/669610/pexels-photo-669610.jpeg?auto=compress&cs=tinysrgb&w=800',
   description: 'قالب احترافي لعرض تحليلات البيانات والمقاييس الرئيسية بطريقة جذابة ومفهومة',
   descriptionEn: 'Professional template for presenting data analytics and key metrics in an attractive and understandable way',
   tags: ['Business', 'Technology', 'Marketing'],

@@ -3,9 +3,9 @@ import { PresentationTemplate } from '../templates';
 export const corporateReportTemplate: PresentationTemplate = {
   id: 'corporate-report',
   titleKey: 'Corporate Annual Report',
-  categoryKey: 'templates.corporate',
+  categoryKey: 'templates.business',
   slideCount: 12,
-  image: '/placeholder.svg',
+  image: 'https://images.pexels.com/photos/3183150/pexels-photo-3183150.jpeg?auto=compress&cs=tinysrgb&w=800',
   description: 'قالب تقرير سنوي شامل للشركات مع رسوم بيانية وإحصائيات احترافية',
   descriptionEn: 'Comprehensive annual report template with professional charts and statistics',
   tags: ['Business', 'Branding', 'Marketing'],

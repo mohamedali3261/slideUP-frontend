@@ -5,7 +5,7 @@ export const eventConferenceTemplate: PresentationTemplate = {
   titleKey: 'Event & Conference',
   categoryKey: 'templates.event',
   slideCount: 10,
-  image: '/placeholder.svg',
+  image: 'https://images.pexels.com/photos/2774556/pexels-photo-2774556.jpeg?auto=compress&cs=tinysrgb&w=800',
   description: 'قالب مثالي للمؤتمرات والفعاليات مع جداول زمنية وعروض المتحدثين',
   descriptionEn: 'Perfect template for conferences and events with schedules and speaker presentations',
   tags: ['Business', 'Marketing', 'Branding'],

@@ -5,7 +5,7 @@ export const onlineCourseTemplate: PresentationTemplate = {
   titleKey: 'Online Course / Workshop',
   categoryKey: 'templates.education',
   slideCount: 12,
-  image: '/placeholder.svg',
+  image: 'https://images.pexels.com/photos/256455/pexels-photo-256455.jpeg?auto=compress&cs=tinysrgb&w=800',
   description: 'قالب مثالي للدورات التعليمية وورش العمل عبر الإنترنت مع تصميم تفاعلي',
   descriptionEn: 'Perfect template for online courses and workshops with interactive design',
   tags: ['Education', 'Technology', 'Creative'],
