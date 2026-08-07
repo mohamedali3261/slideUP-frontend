@@ -11,6 +11,7 @@ import {
   DialogFooter,
 } from '@/components/ui/dialog';
 import { SlideTemplate, SlideElement, TableCell } from '@/data/templates';
+import { IconRenderer } from './IconRenderer';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 import JSZip from 'jszip';
@@ -166,6 +167,159 @@ const extractBlock = (xml: string, tag: string, from: number): { inner: string; 
 interface Trans { a: number; d: number; tx: number; ty: number; }
 
 const IDENTITY: Trans = { a: 1, d: 1, tx: 0, ty: 0 };
+
+// Renders a scaled-down snapshot of an imported slide for the preview thumbnails
+const PreviewThumbnail = ({ slide, index }: { slide: SlideTemplate; index: number }) => {
+  const scale = 0.1;
+  const renderElement = (el: SlideElement) => {
+    const base: React.CSSProperties = {
+      position: 'absolute',
+      left: el.x,
+      top: el.y,
+      width: el.width,
+      height: el.height,
+      zIndex: el.zIndex || 1,
+      opacity: el.opacity ?? 1,
+      transform: el.rotation ? `rotate(${el.rotation}deg)` : undefined,
+      transformOrigin: 'center center',
+      overflow: 'hidden',
+    };
+    if (el.type === 'text') {
+      return (
+        <div key={el.id} style={base}>
+          <div
+            className="w-full h-full flex flex-col whitespace-pre-wrap"
+            style={{
+              fontSize: (el.fontSize || 16) * (1 / scale),
+              fontWeight: el.fontWeight || 'normal',
+              textAlign: el.textAlign || 'left',
+              lineHeight: 1.2,
+              color: el.color || '#000000',
+              backgroundColor: el.backgroundColor,
+              justifyContent: 'flex-start',
+              padding: '2px 4px',
+              boxSizing: 'border-box',
+            }}
+          >
+            {el.content || ''}
+          </div>
+        </div>
+      );
+    }
+    if (el.type === 'image' && el.imageUrl) {
+      return (
+        <div key={el.id} style={base}>
+          <img src={el.imageUrl} alt="" style={{ width: '100%', height: '100%', objectFit: el.objectFit || 'cover' }} />
+        </div>
+      );
+    }
+    if (el.type === 'shape') {
+      if (el.shapeType === 'line') {
+        return (
+          <div key={el.id} style={base}>
+            <div className="absolute top-1/2 left-0 right-0" style={{ height: 1 / scale, backgroundColor: el.backgroundColor || '#3b82f6' }} />
+          </div>
+        );
+      }
+      if (el.shapeType === 'arrow') {
+        return (
+          <div key={el.id} style={base}>
+            <svg viewBox="0 0 100 50" style={{ width: '100%', height: '100%' }}>
+              <polygon points="0,20 70,20 70,0 100,25 70,50 70,30 0,30" fill={el.backgroundColor || '#3b82f6'} />
+            </svg>
+          </div>
+        );
+      }
+      const shapeStyles: React.CSSProperties = {
+        width: '100%',
+        height: '100%',
+        backgroundColor: el.backgroundColor || (el.border ? 'transparent' : '#3b82f6'),
+        borderRadius: el.shapeType === 'circle' ? '50%' : el.borderRadius || 0,
+      };
+      if (el.border) shapeStyles.border = `${el.border.width / scale}px ${el.border.style} ${el.border.color}`;
+      return (
+        <div key={el.id} style={base}>
+          <div style={shapeStyles} />
+        </div>
+      );
+    }
+    if (el.type === 'icon' && el.iconConfig) {
+      return (
+        <div key={el.id} style={base}>
+          <div className="w-full h-full flex items-center justify-center">
+            <IconRenderer
+              config={{
+                ...el.iconConfig,
+                size: Math.min(el.width, el.height) * (1 / scale),
+              }}
+              className="w-full h-full"
+            />
+          </div>
+        </div>
+      );
+    }
+    if (el.type === 'table' && el.tableConfig) {
+      const cfg = el.tableConfig;
+      return (
+        <div key={el.id} style={{ ...base, overflow: 'hidden' }}>
+          <div
+            className="w-full h-full grid"
+            style={{
+              display: 'grid',
+              gridTemplateColumns: `repeat(${cfg.cols}, 1fr)`,
+              gridTemplateRows: `repeat(${cfg.rows}, 1fr)`,
+              border: `${1 / scale}px solid ${cfg.borderColor || '#d1d5db'}`,
+              backgroundColor: '#ffffff',
+            }}
+          >
+            {cfg.cells.flat().map((cell, i) => (
+              <div
+                key={i}
+                style={{
+                  border: `0.5px solid ${cfg.borderColor || '#d1d5db'}`,
+                  fontSize: 8 / scale,
+                  color: cell.textColor || '#111827',
+                  backgroundColor: cell.backgroundColor,
+                  fontWeight: cell.fontWeight || 'normal',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: cell.textAlign === 'center' ? 'center' : cell.textAlign === 'right' ? 'flex-end' : 'flex-start',
+                  padding: '1px 3px',
+                  overflow: 'hidden',
+                  boxSizing: 'border-box',
+                }}
+              >
+                {cell.content}
+              </div>
+            ))}
+          </div>
+        </div>
+      );
+    }
+    return null;
+  };
+
+  return (
+    <div
+      className="relative"
+      style={{ width: 960 * scale, height: 540 * scale }}
+    >
+      <div
+        className="absolute top-0 left-0 overflow-hidden"
+        style={{
+          width: 960,
+          height: 540,
+          transform: `scale(${scale})`,
+          transformOrigin: 'top left',
+          backgroundColor: slide.backgroundColor || '#ffffff',
+        }}
+      >
+        {slide.elements?.map(renderElement)}
+      </div>
+      <span className="absolute bottom-0.5 left-1 text-[8px] font-semibold text-gray-500 dark:text-gray-400 z-50">{index + 1}</span>
+    </div>
+  );
+};
 
 export const ImportPPTX = ({ onImport }: ImportPPTXProps) => {
   const { language } = useLanguage();
@@ -786,20 +940,17 @@ export const ImportPPTX = ({ onImport }: ImportPPTXProps) => {
                 {language === 'ar' ? `معاينة (${previewSlides.length} شرائح)` : `Preview (${previewSlides.length} slides)`}
               </p>
               <div className="flex gap-2 overflow-x-auto pb-2">
-                {previewSlides.slice(0, 5).map((slide, index) => (
-                  <div 
-                    key={slide.id} 
-                    className="flex-shrink-0 w-24 aspect-video rounded-lg border border-gray-200 dark:border-gray-700 overflow-hidden bg-white dark:bg-gray-800 shadow-sm"
+                {previewSlides.slice(0, 8).map((slide, index) => (
+                  <div
+                    key={slide.id}
+                    className="flex-shrink-0 rounded-lg border border-gray-200 dark:border-gray-700 overflow-hidden bg-white dark:bg-gray-800 shadow-sm w-[110px] aspect-video"
                   >
-                    <div className="w-full h-full flex flex-col items-center justify-center p-1.5 bg-gradient-to-br from-gray-50 to-white dark:from-gray-800 dark:to-gray-900">
-                      <span className="text-[9px] text-gray-400 dark:text-gray-500">{index + 1}</span>
-                      <p className="text-[10px] font-medium text-center text-gray-700 dark:text-gray-300 line-clamp-2 leading-tight">{slide.title}</p>
-                    </div>
+                    <PreviewThumbnail slide={slide} index={index} />
                   </div>
                 ))}
-                {previewSlides.length > 5 && (
-                  <div className="flex-shrink-0 w-24 aspect-video rounded-lg border border-dashed border-gray-300 dark:border-gray-600 bg-gray-50 dark:bg-gray-800/50 flex items-center justify-center">
-                    <span className="text-xs font-semibold text-gray-500 dark:text-gray-400">+{previewSlides.length - 5}</span>
+                {previewSlides.length > 8 && (
+                  <div className="flex-shrink-0 w-[110px] aspect-video rounded-lg border border-dashed border-gray-300 dark:border-gray-600 bg-gray-50 dark:bg-gray-800/50 flex items-center justify-center">
+                    <span className="text-xs font-semibold text-gray-500 dark:text-gray-400">+{previewSlides.length - 8}</span>
                   </div>
                 )}
               </div>
