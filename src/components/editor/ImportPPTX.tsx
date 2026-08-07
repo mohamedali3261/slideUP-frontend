@@ -85,8 +85,15 @@ const parseSolidColor = (fillXml: string): string | null => {
   return null;
 };
 
+// Extract the fill section of spPr - everything before <a:ln (the outline)
+const getFillSection = (spPr: string): string => {
+  const lnIdx = spPr.indexOf('<a:ln');
+  return lnIdx === -1 ? spPr : spPr.slice(0, lnIdx);
+};
+
 const getFillColor = (spPr: string): string | null => {
-  const solid = spPr.match(/<a:solidFill>([\s\S]*?)<\/a:solidFill>/);
+  const fill = getFillSection(spPr);
+  const solid = fill.match(/<a:solidFill>([\s\S]*?)<\/a:solidFill>/);
   return solid ? parseSolidColor(solid[1]) : null;
 };
 
@@ -95,6 +102,13 @@ const getLineColor = (spPr: string): string | null => {
   if (!ln) return null;
   const solid = ln[1].match(/<a:solidFill>([\s\S]*?)<\/a:solidFill>/);
   return solid ? parseSolidColor(solid[1]) : null;
+};
+
+const getLineWidth = (spPr: string): number => {
+  const m = spPr.match(/<a:ln\s+w="(\d+)"/);
+  if (!m) return 1;
+  const px = Math.max(0.5, parseInt(m[1]) / 12700);
+  return Math.min(px, 24);
 };
 
 // Map PowerPoint preset geometry to our shape types
@@ -387,7 +401,7 @@ export const ImportPPTX = ({ onImport }: ImportPPTXProps) => {
           return { ...base, type: 'shape', shapeType: 'line', backgroundColor: getLineColor(spPr) || fill || '#000000', zIndex: 6 };
         }
         if (preset.shapeType === 'arrow') {
-          return { ...base, type: 'shape', shapeType: 'arrow', backgroundColor: fill || '#000000', zIndex: 6 };
+          return { ...base, type: 'shape', shapeType: 'arrow', backgroundColor: fill || getLineColor(spPr) || '#000000', zIndex: 6 };
         }
         if (fill) {
           return {
@@ -396,6 +410,19 @@ export const ImportPPTX = ({ onImport }: ImportPPTXProps) => {
             shapeType: preset.shapeType === 'circle' ? 'circle' : 'rectangle',
             ...(preset.shapeType === 'rectangle' ? { borderRadius: preset.borderRadius || 0 } : {}),
             backgroundColor: fill,
+            zIndex: 5,
+          };
+        }
+        // Outline-only shape (noFill + border) - keep as a bordered shape
+        const lineColor = getLineColor(spPr);
+        if (lineColor) {
+          const lineWidth = getLineWidth(spPr);
+          return {
+            ...base,
+            type: 'shape',
+            shapeType: preset.shapeType === 'circle' ? 'circle' : 'rectangle',
+            ...(preset.shapeType === 'rectangle' ? { borderRadius: preset.borderRadius || 0 } : {}),
+            border: { width: lineWidth, color: lineColor, style: 'solid' as const },
             zIndex: 5,
           };
         }

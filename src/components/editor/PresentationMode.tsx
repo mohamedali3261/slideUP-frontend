@@ -499,6 +499,7 @@ export const PresentationMode = ({
               height: '100%',
               backgroundColor: element.backgroundColor,
               borderRadius: element.shapeType === 'circle' ? '50%' : element.borderRadius,
+              ...(element.border ? { border: `${element.border.width}px ${element.border.style} ${element.border.color}` } : {}),
             }}
           />
         );

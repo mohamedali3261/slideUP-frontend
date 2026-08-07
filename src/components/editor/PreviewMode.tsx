@@ -335,6 +335,10 @@ export const PreviewMode = ({
             else if (element.shapeType === 'arrow') {
               return <svg viewBox="0 0 100 50" className="w-full h-full"><polygon points="0,20 70,20 70,0 100,25 70,50 70,30 0,30" fill={element.backgroundColor || '#3b82f6'} /></svg>;
             }
+            if (element.border) {
+              shapeStyles.background = 'transparent';
+              shapeStyles.border = `${element.border.width}px ${element.border.style} ${element.border.color}`;
+            }
             return <div style={shapeStyles} />;
           })()
         )}

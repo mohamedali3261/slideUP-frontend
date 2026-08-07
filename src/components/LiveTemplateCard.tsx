@@ -203,8 +203,9 @@ const renderElement = (element: SlideElement, animate: boolean) => {
       const shapeStyles: React.CSSProperties = {
         width: '100%',
         height: '100%',
-        backgroundColor: element.backgroundColor || '#3b82f6',
+        backgroundColor: element.backgroundColor || (element.border ? 'transparent' : '#3b82f6'),
         borderRadius: element.shapeType === 'circle' ? '50%' : element.borderRadius || 8,
+        ...(element.border ? { border: `${element.border.width}px ${element.border.style} ${element.border.color}` } : {}),
       };
       inner = <div style={shapeStyles} />;
     }
