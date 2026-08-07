@@ -189,6 +189,12 @@ import { financeReportTemplate } from './templates/finance-report';
 import { sportsEnergyTemplate } from './templates/sports-energy';
 import { architecturePortfolioTemplate } from './templates/architecture-portfolio';
 import { travelAdventureTemplate } from './templates/travel-adventure';
+import { arabicBusinessTemplate } from './templates/arabic-business';
+import { arabicEducationTemplate } from './templates/arabic-education';
+import { arabicRestaurantTemplate } from './templates/arabic-restaurant';
+import { arabicEventTemplate } from './templates/arabic-event';
+import { arabicMarketingTemplate } from './templates/arabic-marketing';
+import { techTrendsTemplate } from './templates/tech-trends';
 
 export const templates: PresentationTemplate[] = [
   dataAnalyticsTemplate,
@@ -204,6 +210,12 @@ export const templates: PresentationTemplate[] = [
   sportsEnergyTemplate,
   architecturePortfolioTemplate,
   travelAdventureTemplate,
+  arabicBusinessTemplate,
+  arabicEducationTemplate,
+  arabicRestaurantTemplate,
+  arabicEventTemplate,
+  arabicMarketingTemplate,
+  techTrendsTemplate,
 ];
 
 export const getTemplateById = (id: string): PresentationTemplate | undefined => {

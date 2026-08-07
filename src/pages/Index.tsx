@@ -2,7 +2,7 @@ import { Navbar } from '@/components/Navbar';
 import { Footer } from '@/components/Footer';
 import { HeroSection } from '@/components/HeroSection';
 import { FeaturesSection } from '@/components/FeaturesSection';
-import { ModernTemplateCard } from '@/components/ModernTemplateCard';
+import { LiveTemplateCard } from '@/components/LiveTemplateCard';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { templates } from '@/data/templates';
 import { Link } from 'react-router-dom';
@@ -55,12 +55,10 @@ const Index = () => {
                 className="transform transition-all duration-300"
                 style={{ animationDelay: `${index * 100}ms` }}
               >
-                <ModernTemplateCard
-                  id={template.id}
-                  title={template.titleKey}
+                <LiveTemplateCard
+                  template={template}
                   description={language === 'ar' ? (template.description || '') : (template.descriptionEn || template.description || '')}
                   category={t(template.categoryKey)}
-                  image={template.image}
                 />
               </div>
             ))}

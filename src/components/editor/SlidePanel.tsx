@@ -1,4 +1,4 @@
-import { useState, memo, useEffect } from 'react';
+import { useState, memo, useEffect, useRef, useCallback } from 'react';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { Plus, Trash2, Copy, ChevronUp, ChevronDown, Sparkles, Layers } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -23,11 +23,202 @@ import {
 import { SlideTemplate, SlideElement } from '@/data/templates';
 import { SlideTransition, TransitionType } from './AnimationControls';
 import { LayersPanel } from './LayersPanel';
+import { IconRenderer } from './IconRenderer';
+import { TableEditor } from './TableEditor';
+import { CodeBlock } from './CodeBlock';
 import { cn } from '@/lib/utils';
+
+// Match the main canvas rendering for every element type
+const renderThumbnailElement = (element: SlideElement) => {
+  const getFontWeight = (weight?: string): number | string => {
+    const weights: Record<string, number> = { light: 300, normal: 400, medium: 500, semibold: 600, bold: 700, extrabold: 800 };
+    return weights[weight || 'normal'] || 400;
+  };
+
+  const filters = (() => {
+    const f = element.filters;
+    if (!f) return 'none';
+    const parts: string[] = [];
+    if (f.blur > 0) parts.push(`blur(${f.blur}px)`);
+    if (f.brightness !== 100) parts.push(`brightness(${f.brightness}%)`);
+    if (f.contrast !== 100) parts.push(`contrast(${f.contrast}%)`);
+    if (f.saturation !== 100) parts.push(`saturate(${f.saturation}%)`);
+    if (f.hueRotate > 0) parts.push(`hue-rotate(${f.hueRotate}deg)`);
+    if (f.grayscale > 0) parts.push(`grayscale(${f.grayscale}%)`);
+    if (f.sepia > 0) parts.push(`sepia(${f.sepia}%)`);
+    if (f.invert > 0) parts.push(`invert(${f.invert}%)`);
+    return parts.length > 0 ? parts.join(' ') : 'none';
+  })();
+
+  const shadow = (() => {
+    const s = element.shadow;
+    if (!s || !s.enabled) return 'none';
+    const inset = s.inset ? 'inset ' : '';
+    return `${inset}${s.x}px ${s.y}px ${s.blur}px ${s.spread || 0}px ${s.color}`;
+  })();
+
+  const border = (() => {
+    const b = element.border;
+    if (!b || b.width === 0) return 'none';
+    return `${b.width}px ${b.style} ${b.color}`;
+  })();
+
+  const wrapperStyle: React.CSSProperties = {
+    position: 'absolute',
+    left: element.x,
+    top: element.y,
+    width: element.width,
+    height: element.height,
+    zIndex: element.zIndex || 1,
+    opacity: element.opacity ?? 1,
+    filter: filters,
+    boxShadow: shadow,
+    border,
+    transform: element.rotation ? `rotate(${element.rotation}deg)` : undefined,
+    transformOrigin: 'center center',
+    overflow: element.type === 'text' ? 'visible' : 'hidden',
+  };
+
+  if (element.type === 'text') {
+    return (
+      <div key={element.id} style={wrapperStyle}>
+        <div
+          className="w-full h-full whitespace-pre-wrap"
+          style={{
+            fontSize: element.fontSize || 16,
+            fontWeight: getFontWeight(element.fontWeight),
+            fontStyle: element.fontStyle || 'normal',
+            textAlign: element.textAlign || 'left',
+            textDecoration: element.textDecoration || 'none',
+            textTransform: element.textTransform || 'none',
+            lineHeight: element.lineHeight || 1.5,
+            letterSpacing: element.letterSpacing ? `${element.letterSpacing}px` : 'normal',
+            fontFamily: element.fontFamily || 'inherit',
+            color: element.color || '#000000',
+            backgroundColor: element.backgroundColor,
+            textShadow: element.textShadow,
+            display: 'flex',
+            flexDirection: 'column',
+            justifyContent: element.verticalAlign === 'middle' ? 'center' : element.verticalAlign === 'bottom' ? 'flex-end' : 'flex-start',
+            padding: '4px 8px',
+          }}
+        >
+          {element.content || ''}
+        </div>
+      </div>
+    );
+  }
+
+  if (element.type === 'image' && element.imageUrl) {
+    return (
+      <div key={element.id} style={wrapperStyle}>
+        <img
+          src={element.imageUrl}
+          alt=""
+          className="w-full h-full"
+          style={{
+            objectFit: element.objectFit || 'cover',
+            objectPosition: element.objectPosition || 'center center',
+            borderRadius: element.borderRadius || 0,
+            transform: `rotate(${element.imageRotation || 0}deg) scaleX(${element.flipHorizontal ? -1 : 1}) scaleY(${element.flipVertical ? -1 : 1})`,
+            clipPath: element.clipPath,
+          }}
+        />
+      </div>
+    );
+  }
+
+  if (element.type === 'shape') {
+    if (element.shapeType === 'line') {
+      return (
+        <div key={element.id} style={wrapperStyle}>
+          <div className="absolute top-1/2 left-0 right-0 h-1" style={{ backgroundColor: element.backgroundColor || '#3b82f6' }} />
+        </div>
+      );
+    }
+    if (element.shapeType === 'arrow') {
+      return (
+        <div key={element.id} style={wrapperStyle}>
+          <svg viewBox="0 0 100 50" className="w-full h-full"><polygon points="0,20 70,20 70,0 100,25 70,50 70,30 0,30" fill={element.backgroundColor || '#3b82f6'} /></svg>
+        </div>
+      );
+    }
+    return (
+      <div
+        key={element.id}
+        style={{
+          ...wrapperStyle,
+          backgroundColor: element.backgroundColor || '#3b82f6',
+          borderRadius: element.shapeType === 'circle' ? '50%' : element.borderRadius || 8,
+        }}
+      />
+    );
+  }
+
+  if (element.type === 'icon' && element.iconConfig) {
+    return (
+      <div key={element.id} style={wrapperStyle}>
+        <div className="w-full h-full flex items-center justify-center">
+          <IconRenderer
+            config={{
+              ...element.iconConfig,
+              size: Math.min(element.width, element.height) * 0.8,
+            }}
+            className="w-full h-full"
+          />
+        </div>
+      </div>
+    );
+  }
+
+  if (element.type === 'table' && element.tableConfig) {
+    return (
+      <div key={element.id} style={wrapperStyle}>
+        <TableEditor
+          config={{
+            ...element.tableConfig,
+            alternateRowColors: element.tableConfig.alternateRowColors ?? false,
+            alternateColor: element.tableConfig.alternateColor ?? '#f9fafb',
+            headerBgColor: element.tableConfig.headerBgColor ?? '#f3f4f6',
+            headerTextColor: element.tableConfig.headerTextColor ?? '#111827',
+          }}
+          onChange={() => {}}
+          width={element.width}
+          height={element.height}
+        />
+      </div>
+    );
+  }
+
+  if (element.type === 'code' && element.codeConfig) {
+    return (
+      <div key={element.id} style={wrapperStyle}>
+        <CodeBlock
+          config={{
+            ...element.codeConfig,
+            showHeader: element.codeConfig.showHeader ?? true,
+            wrapLines: element.codeConfig.wrapLines ?? false,
+            tabSize: element.codeConfig.tabSize ?? 2,
+            highlightLines: element.codeConfig.highlightLines ?? [],
+            headerTitle: element.codeConfig.headerTitle ?? '',
+          }}
+          onChange={() => {}}
+          width={element.width}
+          height={element.height}
+          isEditing={false}
+        />
+      </div>
+    );
+  }
+
+  return null;
+};
 
 // Debounced thumbnail - updates 500ms after last change to prevent hanging
 const SlideThumbnail = memo(({ slide }: { slide: SlideTemplate }) => {
   const [debouncedSlide, setDebouncedSlide] = useState(slide);
+  const containerRef = useRef<HTMLDivElement>(null);
+  const [scale, setScale] = useState(0.1875); // default 180px / 960px
   
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -35,78 +226,43 @@ const SlideThumbnail = memo(({ slide }: { slide: SlideTemplate }) => {
     }, 500);
     return () => clearTimeout(timer);
   }, [slide]);
+
+  // Measure the actual container size and scale the 960x540 canvas to fill it exactly
+  const updateScale = useCallback(() => {
+    const container = containerRef.current;
+    if (!container) return;
+    const width = container.clientWidth;
+    const height = container.clientHeight;
+    if (width <= 0 || height <= 0) return;
+    setScale(Math.min(width / 960, height / 540));
+  }, []);
+
+  useEffect(() => {
+    updateScale();
+    const observer = new ResizeObserver(updateScale);
+    if (containerRef.current) observer.observe(containerRef.current);
+    window.addEventListener('resize', updateScale);
+    return () => {
+      observer.disconnect();
+      window.removeEventListener('resize', updateScale);
+    };
+  }, [updateScale]);
   
   const hasElements = debouncedSlide.elements && debouncedSlide.elements.length > 0;
   
   return (
-    <div 
-      className="absolute inset-0"
-      style={{
-        transform: 'scale(0.1875)',
-        transformOrigin: 'top left',
-        width: '960px',
-        height: '540px',
-      }}
-    >
+    <div ref={containerRef} className="absolute inset-0">
+      <div
+        className="absolute top-0 left-0"
+        style={{
+          transform: `scale(${scale})`,
+          transformOrigin: 'top left',
+          width: '960px',
+          height: '540px',
+        }}
+      >
       {hasElements ? (
-        debouncedSlide.elements!.map((element) => (
-          <div
-            key={element.id}
-            className="absolute"
-            style={{
-              left: element.x,
-              top: element.y,
-              width: element.width,
-              height: element.height,
-              opacity: element.opacity ?? 1,
-            }}
-          >
-            {element.type === 'text' && (
-              <div
-                style={{
-                  fontSize: element.fontSize,
-                  fontWeight: element.fontWeight,
-                  color: element.color,
-                  textAlign: element.textAlign,
-                  fontFamily: element.fontFamily,
-                  width: '100%',
-                  height: '100%',
-                }}
-              >
-                {element.content}
-              </div>
-            )}
-            {element.type === 'image' && element.imageUrl && (
-              <img
-                src={element.imageUrl}
-                alt=""
-                className="w-full h-full"
-                style={{
-                  objectFit: element.objectFit || 'cover',
-                  borderRadius: element.borderRadius,
-                }}
-              />
-            )}
-            {element.type === 'shape' && (
-              <div
-                style={{
-                  width: '100%',
-                  height: '100%',
-                  backgroundColor: element.backgroundColor,
-                  borderRadius: element.shapeType === 'circle' ? '50%' : element.borderRadius,
-                }}
-              />
-            )}
-            {element.type === 'icon' && element.iconConfig && (
-              <div 
-                className="w-full h-full flex items-center justify-center"
-                style={{ color: element.iconConfig.color }}
-              >
-                <span style={{ fontSize: element.iconConfig.size }}>●</span>
-              </div>
-            )}
-          </div>
-        ))
+        debouncedSlide.elements!.map((element) => renderThumbnailElement(element))
       ) : (
         <div className="absolute inset-0 flex flex-col items-center justify-center p-16 text-center">
           <h3 
@@ -131,6 +287,7 @@ const SlideThumbnail = memo(({ slide }: { slide: SlideTemplate }) => {
           )}
         </div>
       )}
+      </div>
     </div>
   );
 });

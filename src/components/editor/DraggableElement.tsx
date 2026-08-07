@@ -376,6 +376,19 @@ export const DraggableElement = ({
 
   const handleBlur = useCallback(() => setIsEditing(false), []);
 
+  // Auto-grow the textarea so the full text is always visible while editing
+  const resizeTextarea = useCallback((ta: HTMLTextAreaElement) => {
+    ta.style.height = 'auto';
+    ta.style.height = `${ta.scrollHeight + 2}px`;
+  }, []);
+
+  useEffect(() => {
+    if (isEditing && element.type === 'text' && textareaRef.current) {
+      resizeTextarea(textareaRef.current);
+      textareaRef.current.focus();
+    }
+  }, [isEditing, element.content, element.type, resizeTextarea]);
+
   // Paste from clipboard function
   const handlePasteFromClipboard = useCallback(async () => {
     const textarea = textareaRef.current;
@@ -471,15 +484,23 @@ export const DraggableElement = ({
         };
         return isEditing ? (
           <div 
-            className="relative w-full h-full" 
-            style={{ userSelect: 'text' }}
+            className="relative"
+            style={{ userSelect: 'text', width: 'max-content', maxWidth: 'none', minWidth: 120, height: 'auto' }}
           >
             <textarea
               ref={textareaRef}
               autoFocus
               value={element.content || ''}
-              onChange={(e) => onUpdate({ content: e.target.value })}
-              onPaste={handlePasteEvent}
+              onChange={(e) => {
+                onUpdate({ content: e.target.value });
+                resizeTextarea(e.target);
+              }}
+              onPaste={(e) => {
+                handlePasteEvent(e);
+                requestAnimationFrame(() => {
+                  if (textareaRef.current) resizeTextarea(textareaRef.current);
+                });
+              }}
               onMouseDown={(e) => e.stopPropagation()}
               onBlur={(e) => {
                 // Don't blur if clicking on paste button
@@ -489,8 +510,8 @@ export const DraggableElement = ({
                 }
                 handleBlur();
               }}
-              className="w-full h-full bg-transparent border-none outline-none resize-none p-2"
-              style={{ ...textStyles, userSelect: 'text', cursor: 'text' }}
+              className="bg-transparent border border-dashed border-primary/40 rounded outline-none p-2 resize-none"
+              style={{ ...textStyles, userSelect: 'text', cursor: 'text', overflow: 'hidden', minHeight: 24 }}
             />
             {/* Paste Button */}
             <button
@@ -500,6 +521,9 @@ export const DraggableElement = ({
                 e.preventDefault();
                 e.stopPropagation();
                 await handlePasteFromClipboard();
+                requestAnimationFrame(() => {
+                  if (textareaRef.current) resizeTextarea(textareaRef.current);
+                });
               }}
               onMouseDown={(e) => {
                 e.preventDefault();
@@ -584,9 +608,9 @@ export const DraggableElement = ({
       style={{
         left: element.x,
         top: element.y,
-        width: element.type === 'text' ? 'fit-content' : element.width,
+        width: element.type === 'text' ? (isEditing ? 'max-content' : 'fit-content') : element.width,
         height: element.type === 'text' ? 'fit-content' : element.height,
-        maxWidth: element.type === 'text' ? element.width : undefined,
+        maxWidth: element.type === 'text' ? (isEditing ? 'none' : element.width) : undefined,
         minWidth: element.type === 'text' ? 50 : undefined,
         zIndex: element.zIndex || 1,
         opacity: element.opacity !== undefined ? element.opacity : 1,

@@ -1,7 +1,6 @@
 import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { useLanguage } from '@/contexts/LanguageContext';
-import { useAuth } from '@/contexts/AuthContext';
 import { ArrowRight } from 'lucide-react';
 
 interface TemplateCardProps {
@@ -14,17 +13,10 @@ interface TemplateCardProps {
 
 export const TemplateCard = ({ id, title, category, slideCount, image }: TemplateCardProps) => {
   const { t, direction } = useLanguage();
-  const { token } = useAuth();
   const navigate = useNavigate();
 
   const handleUseTemplate = () => {
-    if (!token) {
-      // Redirect to login if not authenticated
-      navigate('/login', { state: { from: `/editor?template=${id}` } });
-    } else {
-      // Navigate to editor with template
-      navigate(`/editor?template=${id}`);
-    }
+    navigate(`/editor?template=${id}`);
   };
 
   return (

@@ -47,20 +47,12 @@ const getDefaultTemplateSlide = (): SlideTemplate => {
 export const Editor = () => {
   const [searchParams] = useSearchParams();
   const { language } = useLanguage();
-  const { user, isLoading } = useAuth();
+  const { user } = useAuth();
   const navigate = useNavigate();
   const { trackAction, trackSlideChange, trackTemplateUsage } = useEditorTracking();
   const { canAddSlide, canAddElement, canExport, quickCheck } = useLimits();
   const templateId = searchParams.get('template');
   const presentationId = searchParams.get('id');
-  
-  // Redirect to login if not authenticated
-  useEffect(() => {
-    if (!isLoading && !user) {
-      toast.error(language === 'ar' ? 'يرجى تسجيل الدخول أولاً' : 'Please login first');
-      navigate('/login', { state: { from: `/editor${window.location.search}` } });
-    }
-  }, [user, isLoading, navigate, language]);
   
   const [presentationTitle, setPresentationTitle] = useState('Untitled Presentation');
   const [slides, setSlides] = useState<SlideTemplate[]>([getDefaultTemplateSlide()]);

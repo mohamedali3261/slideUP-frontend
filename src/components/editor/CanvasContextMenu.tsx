@@ -1,4 +1,5 @@
-import { useEffect, useRef, useCallback } from 'react';
+import { useEffect, useRef, useCallback, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { SlideElement } from '@/data/templates';
 import { 
@@ -85,6 +86,7 @@ export const CanvasContextMenu = ({
 }: ContextMenuProps) => {
   const { language } = useLanguage();
   const menuRef = useRef<HTMLDivElement>(null);
+  const [position, setPosition] = useState<{ left: number; top: number } | null>(null);
 
   const t = useCallback((ar: string, en: string) => language === 'ar' ? ar : en, [language]);
 
@@ -111,21 +113,34 @@ export const CanvasContextMenu = ({
     };
   }, [isOpen, onClose]);
 
-  // Adjust position to stay within viewport
+  // Measure menu and keep it fully inside the viewport
   useEffect(() => {
-    if (isOpen && menuRef.current) {
+    if (!isOpen) {
+      setPosition(null);
+      return;
+    }
+    const measure = () => {
+      if (!menuRef.current) return;
       const menu = menuRef.current;
-      const rect = menu.getBoundingClientRect();
+      menu.style.visibility = 'hidden';
+      const menuWidth = menu.offsetWidth;
+      const menuHeight = menu.offsetHeight;
+      menu.style.visibility = 'visible';
+
+      const margin = 8;
       const viewportWidth = window.innerWidth;
       const viewportHeight = window.innerHeight;
 
-      if (rect.right > viewportWidth) {
-        menu.style.left = `${x - rect.width}px`;
-      }
-      if (rect.bottom > viewportHeight) {
-        menu.style.top = `${y - rect.height}px`;
-      }
-    }
+      let left = x;
+      let top = y;
+      if (left + menuWidth + margin > viewportWidth) left = viewportWidth - menuWidth - margin;
+      if (top + menuHeight + margin > viewportHeight) top = viewportHeight - menuHeight - margin;
+      left = Math.max(margin, left);
+      top = Math.max(margin, top);
+
+      setPosition({ left, top });
+    };
+    requestAnimationFrame(measure);
   }, [isOpen, x, y]);
 
   if (!isOpen) return null;
@@ -137,11 +152,11 @@ export const CanvasContextMenu = ({
     onClose();
   };
 
-  return (
+  return createPortal(
     <div
       ref={menuRef}
       className="fixed z-[9999] min-w-[200px] bg-white dark:bg-gray-900 rounded-lg shadow-xl border border-gray-200 dark:border-gray-700 py-1.5 px-1.5 animate-in fade-in zoom-in-95 duration-100"
-      style={{ left: x, top: y }}
+      style={position ? { left: position.left, top: position.top } : { left: x, top: y }}
     >
       <MenuItem
         icon={<Copy size={14} />}
@@ -218,7 +233,8 @@ export const CanvasContextMenu = ({
         disabled={!hasSelection}
         danger
       />
-    </div>
+    </div>,
+    document.body
   );
 };
 

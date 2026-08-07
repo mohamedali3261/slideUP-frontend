@@ -1,6 +1,6 @@
 import { Navbar } from '@/components/Navbar';
 import { Footer } from '@/components/Footer';
-import { ModernTemplateCard } from '@/components/ModernTemplateCard';
+import { LiveTemplateCard } from '@/components/LiveTemplateCard';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { templates } from '@/data/templates';
 import { Search, ChevronDown, Filter, LayoutGrid, Sparkles } from 'lucide-react';
@@ -166,14 +166,11 @@ export const Templates = () => {
             <>
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
                 {filteredTemplates.map((template) => (
-                  <ModernTemplateCard
+                  <LiveTemplateCard
                     key={template.id}
-                    id={template.id}
-                    title={template.titleKey}
+                    template={template}
                     description={language === 'ar' ? (template.description || '') : (template.descriptionEn || template.description || '')}
                     category={t(template.categoryKey)}
-                    image={template.image}
-                    isNew={template.isNew}
                   />
                 ))}
               </div>

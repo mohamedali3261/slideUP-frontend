@@ -10,7 +10,7 @@ import {
   DialogTrigger,
   DialogFooter,
 } from '@/components/ui/dialog';
-import { SlideTemplate, SlideElement } from '@/data/templates';
+import { SlideTemplate, SlideElement, TableCell } from '@/data/templates';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 import JSZip from 'jszip';
@@ -58,6 +58,100 @@ interface ImportStatus {
 // Canvas dimensions - same as editor
 const CANVAS_W = 960;
 const CANVAS_H = 540;
+
+// PowerPoint theme scheme colors -> hex
+const SCHEME_COLORS: Record<string, string> = {
+  bg1: '#ffffff', tx1: '#000000', bg2: '#f2f2f2', tx2: '#404040',
+  dk1: '#000000', lt1: '#ffffff', dk2: '#404040', lt2: '#f2f2f2',
+  accent1: '#4472c4', accent2: '#ed7d31', accent3: '#a5a5a5', accent4: '#ffc000',
+  accent5: '#5b9bd5', accent6: '#70ad47',
+};
+
+// Parse a solidFill color (srgbClr / schemeClr / sysClr) including alpha
+const parseSolidColor = (fillXml: string): string | null => {
+  const srgb = fillXml.match(/<a:srgbClr val="([A-Fa-f0-9]{6})"/);
+  if (srgb) {
+    const alpha = fillXml.match(/<a:alpha val="(\d+)"/);
+    if (alpha) {
+      const a = Math.round((parseInt(alpha[1]) / 100000) * 255);
+      return '#' + srgb[1].toLowerCase() + a.toString(16).padStart(2, '0');
+    }
+    return '#' + srgb[1].toLowerCase();
+  }
+  const scheme = fillXml.match(/<a:schemeClr val="([A-Za-z0-9]+)"/);
+  if (scheme) return SCHEME_COLORS[scheme[1].toLowerCase()] || '#000000';
+  const sys = fillXml.match(/<a:sysClr[^>]*lastClr="([A-Fa-f0-9]{6})"/);
+  if (sys) return '#' + sys[1].toLowerCase();
+  return null;
+};
+
+const getFillColor = (spPr: string): string | null => {
+  const solid = spPr.match(/<a:solidFill>([\s\S]*?)<\/a:solidFill>/);
+  return solid ? parseSolidColor(solid[1]) : null;
+};
+
+const getLineColor = (spPr: string): string | null => {
+  const ln = spPr.match(/<a:ln[\s\S]*?>([\s\S]*?)<\/a:ln>/);
+  if (!ln) return null;
+  const solid = ln[1].match(/<a:solidFill>([\s\S]*?)<\/a:solidFill>/);
+  return solid ? parseSolidColor(solid[1]) : null;
+};
+
+// Map PowerPoint preset geometry to our shape types
+const mapPreset = (prst: string): { shapeType: 'rectangle' | 'circle' | 'line' | 'arrow'; borderRadius?: number } => {
+  const p = (prst || '').toLowerCase();
+  if (!p) return { shapeType: 'rectangle', borderRadius: 0 };
+  if (p === 'rect') return { shapeType: 'rectangle', borderRadius: 0 };
+  if (p === 'roundrect') return { shapeType: 'rectangle', borderRadius: 14 };
+  if (p === 'ellipse' || p === 'oval' || p === 'donut') return { shapeType: 'circle' };
+  if (p === 'line' || p === 'straightconnector1' || p === 'bentconnector2' || p === 'bentconnector3' || p === 'curvedconnector3') {
+    return { shapeType: 'line' };
+  }
+  if (p.includes('arrow') || p.includes('connector')) return { shapeType: 'arrow' };
+  return { shapeType: 'rectangle', borderRadius: 0 };
+};
+
+// Find the start of an open tag like <p:sp> or <p:sp ...>
+const findOpenTag = (xml: string, tag: string, from: number): number => {
+  const open = '<' + tag;
+  let i = xml.indexOf(open, from);
+  while (i !== -1) {
+    const after = xml[i + open.length];
+    if (after === '>' || after === ' ' || after === '\t' || after === '\n' || after === '\r' || after === '/') return i;
+    i = xml.indexOf(open, i + open.length);
+  }
+  return -1;
+};
+
+// Extract a balanced block <tag>...</tag> including nested same-tag blocks
+const extractBlock = (xml: string, tag: string, from: number): { inner: string; end: number } | null => {
+  const start = findOpenTag(xml, tag, from);
+  if (start === -1) return null;
+  const openEnd = xml.indexOf('>', start);
+  if (openEnd === -1) return null;
+  if (xml[openEnd - 1] === '/') return { inner: '', end: openEnd + 1 }; // self-closing
+  const close = '</' + tag + '>';
+  let depth = 1;
+  let pos = openEnd + 1;
+  while (pos < xml.length && depth > 0) {
+    const nextOpen = findOpenTag(xml, tag, pos);
+    const nextClose = xml.indexOf(close, pos);
+    if (nextClose === -1) { depth = 0; pos = xml.length; break; }
+    if (nextOpen !== -1 && nextOpen < nextClose) {
+      depth++;
+      pos = nextOpen + tag.length + 1;
+    } else {
+      depth--;
+      pos = nextClose + close.length;
+    }
+  }
+  const innerEnd = pos - close.length;
+  return { inner: xml.slice(openEnd + 1, innerEnd), end: pos };
+};
+
+interface Trans { a: number; d: number; tx: number; ty: number; }
+
+const IDENTITY: Trans = { a: 1, d: 1, tx: 0, ty: 0 };
 
 export const ImportPPTX = ({ onImport }: ImportPPTXProps) => {
   const { language } = useLanguage();
@@ -137,6 +231,12 @@ export const ImportPPTX = ({ onImport }: ImportPPTXProps) => {
       const elements: SlideElement[] = [];
       let slideTitle = '';
       
+      // Per-slide counters for unique element ids
+      let picCounter = 0;
+      let shapeCounter = 0;
+      let lineCounter = 0;
+      let tableCounter = 0;
+      
       // Get relationships for images
       const relsPath = slideFiles[idx].replace('slides/', 'slides/_rels/').replace('.xml', '.xml.rels');
       const relsXml = await zip.file(relsPath)?.async('text') || '';
@@ -161,7 +261,7 @@ export const ImportPPTX = ({ onImport }: ImportPPTXProps) => {
         } catch { return null; }
       };
       
-      // Extract transform from xfrm element string
+      // Extract transform from xfrm element string (EMU -> px)
       const extractTransform = (xfrmStr: string): { x: number; y: number; w: number; h: number } | null => {
         const xMatch = xfrmStr.match(/<a:off[^>]+x="(\d+)"/);
         const yMatch = xfrmStr.match(/<a:off[^>]+y="(\d+)"/);
@@ -170,155 +270,338 @@ export const ImportPPTX = ({ onImport }: ImportPPTXProps) => {
         
         if (!xMatch || !yMatch || !wMatch || !hMatch) return null;
         
-        const emuX = parseInt(xMatch[1]);
-        const emuY = parseInt(yMatch[1]);
-        const emuW = parseInt(wMatch[1]);
-        const emuH = parseInt(hMatch[1]);
-        
         return {
-          x: emuToPixelX(emuX),
-          y: emuToPixelY(emuY),
-          w: emuToPixelX(emuW),
-          h: emuToPixelY(emuH)
+          x: emuToPixelX(parseInt(xMatch[1])),
+          y: emuToPixelY(parseInt(yMatch[1])),
+          w: emuToPixelX(parseInt(wMatch[1])),
+          h: emuToPixelY(parseInt(hMatch[1]))
         };
       };
       
-      // Parse all pictures FIRST (so they appear behind text)
-      if (importImages) {
-        const picRegex = /<p:pic>([\s\S]*?)<\/p:pic>/g;
-        let picMatch;
-        let picIndex = 0;
-        
-        while ((picMatch = picRegex.exec(slideXml)) !== null) {
-          const picContent = picMatch[1];
-          
-          // Get spPr for picture
-          const spPrMatch = picContent.match(/<p:spPr>([\s\S]*?)<\/p:spPr>/);
-          if (!spPrMatch) continue;
-          
-          // Get xfrm
-          const xfrmMatch = spPrMatch[1].match(/<a:xfrm[^>]*>([\s\S]*?)<\/a:xfrm>/);
-          if (!xfrmMatch) continue;
-          
-          const transform = extractTransform(xfrmMatch[0] + xfrmMatch[1]);
-          if (!transform || transform.w < 10 || transform.h < 10) continue;
-          
-          // Get image reference
-          const embedMatch = picContent.match(/r:embed="([^"]+)"/);
-          if (!embedMatch) continue;
-          
-          const imageUrl = await getImageData(embedMatch[1]);
-          if (!imageUrl) continue;
-          
-          console.log(`Image at (${transform.x}, ${transform.y}) size ${transform.w}x${transform.h}`);
-          
-          elements.push({
-            id: `img-${Date.now()}-${idx}-${picIndex++}`,
-            type: 'image',
-            x: transform.x,
-            y: transform.y,
-            width: transform.w,
-            height: transform.h,
-            imageUrl,
-            objectFit: 'fill',
-            zIndex: 1, // Images behind text
-          });
-        }
-      }
+      const extractRotation = (xfrmStr: string): number => {
+        const m = xfrmStr.match(/rot="(\d+)"/);
+        if (!m) return 0;
+        return Math.round((parseInt(m[1]) / 60000) % 360);
+      };
       
-      // Parse all shapes/text AFTER images (so they appear on top)
-      const shapeRegex = /<p:sp>([\s\S]*?)<\/p:sp>/g;
-      let shapeMatch;
-      let textIndex = 0;
+      // Parse a picture into an image element
+      const parsePic = async (picInner: string, t: Trans): Promise<SlideElement | null> => {
+        if (!importImages) return null;
+        const spPr = picInner.match(/<p:spPr>([\s\S]*?)<\/p:spPr>/);
+        if (!spPr) return null;
+        const xfrm = spPr[1].match(/<a:xfrm[^>]*>([\s\S]*?)<\/a:xfrm>/);
+        if (!xfrm) return null;
+        const tr = extractTransform(xfrm[0] + xfrm[1]);
+        if (!tr) return null;
+        const embed = picInner.match(/r:embed="([^"]+)"/);
+        if (!embed) return null;
+        const imageUrl = await getImageData(embed[1]);
+        if (!imageUrl) return null;
+        const w = Math.round(tr.w * t.a);
+        const h = Math.round(tr.h * t.d);
+        if (w < 4 || h < 4) return null;
+        return {
+          id: `img-${Date.now()}-${idx}-${picCounter++}`,
+          type: 'image',
+          x: Math.round(tr.x * t.a + t.tx),
+          y: Math.round(tr.y * t.d + t.ty),
+          width: w,
+          height: h,
+          imageUrl,
+          objectFit: 'fill',
+          zIndex: 1,
+        };
+      };
       
-      while ((shapeMatch = shapeRegex.exec(slideXml)) !== null) {
-        const shapeContent = shapeMatch[1];
+      // Parse a shape (with or without text) into a text or shape element
+      const parseSp = (spInner: string, t: Trans): SlideElement | null => {
+        const spPrMatch = spInner.match(/<p:spPr>([\s\S]*?)<\/p:spPr>/);
+        if (!spPrMatch) return null;
+        const spPr = spPrMatch[1];
+        const xfrm = spPr.match(/<a:xfrm[^>]*>([\s\S]*?)<\/a:xfrm>/);
+        if (!xfrm) return null;
+        const tr = extractTransform(xfrm[0] + xfrm[1]);
+        if (!tr) return null;
+        const w = Math.round(tr.w * t.a);
+        const h = Math.round(tr.h * t.d);
+        if (w < 3 || h < 3) return null;
         
-        // Get spPr (shape properties) which contains xfrm
-        const spPrMatch = shapeContent.match(/<p:spPr>([\s\S]*?)<\/p:spPr>/);
-        if (!spPrMatch) continue;
+        const rotation = extractRotation(xfrm[0] + xfrm[1]);
+        const prstMatch = spPr.match(/<a:prstGeom[^>]*prst="([^"]+)"/);
+        const preset = mapPreset(prstMatch ? prstMatch[1] : '');
+        const fill = getFillColor(spPr);
         
-        // Get xfrm from spPr
-        const xfrmMatch = spPrMatch[1].match(/<a:xfrm[^>]*>([\s\S]*?)<\/a:xfrm>/);
-        if (!xfrmMatch) continue;
+        const base = {
+          id: `sp-${Date.now()}-${idx}-${shapeCounter++}`,
+          x: Math.round(tr.x * t.a + t.tx),
+          y: Math.round(tr.y * t.d + t.ty),
+          width: w,
+          height: h,
+          ...(rotation ? { rotation } : {}),
+        };
         
-        const transform = extractTransform(xfrmMatch[0] + xfrmMatch[1]);
-        if (!transform || transform.w < 5 || transform.h < 5) continue;
+        const txBodyMatch = spInner.match(/<p:txBody>([\s\S]*?)<\/p:txBody>/);
+        const txBody = txBodyMatch ? txBodyMatch[1] : '';
+        const text = [...txBody.matchAll(/<a:t>([\s\S]*?)<\/a:t>/g)]
+          .map(m => m[1])
+          .join('')
+          .trim();
         
-        // Get text content from txBody
-        const txBodyMatch = shapeContent.match(/<p:txBody>([\s\S]*?)<\/p:txBody>/);
-        if (!txBodyMatch) continue;
-        
-        const txBody = txBodyMatch[1];
-        
-        // Extract all text
-        const textParts: string[] = [];
-        const tRegex = /<a:t>([^<]*)<\/a:t>/g;
-        let tMatch;
-        while ((tMatch = tRegex.exec(txBody)) !== null) {
-          if (tMatch[1]) textParts.push(tMatch[1]);
+        if (text) {
+          let fontSize = 18;
+          const sz = txBody.match(/sz="(\d+)"/);
+          if (sz) fontSize = Math.round(parseInt(sz[1]) / 100);
+          fontSize = Math.max(8, Math.min(fontSize, 72));
+          
+          let textAlign: 'left' | 'center' | 'right' = 'left';
+          if (txBody.includes('algn="ctr"')) textAlign = 'center';
+          else if (txBody.includes('algn="r"')) textAlign = 'right';
+          
+          const fontWeight = txBody.includes('b="1"') ? 'bold' : 'normal';
+          
+          let color = '#000000';
+          const colorMatch = txBody.match(/<a:srgbClr val="([A-Fa-f0-9]{6})"/);
+          if (colorMatch) color = '#' + colorMatch[1];
+          else {
+            const scheme = txBody.match(/<a:schemeClr val="([A-Za-z0-9]+)"/);
+            if (scheme) color = SCHEME_COLORS[scheme[1].toLowerCase()] || '#000000';
+          }
+          
+          if (!slideTitle && text.length < 100) slideTitle = text.split('\n')[0];
+          
+          return {
+            ...base,
+            type: 'text',
+            content: text,
+            fontSize,
+            fontWeight: fontWeight as 'normal' | 'bold',
+            textAlign,
+            color,
+            ...(fill ? { backgroundColor: fill } : {}),
+            zIndex: 10,
+          };
         }
         
-        const text = textParts.join('').trim();
-        if (!text) continue;
+        // No text -> keep the shape (fills, cards, dividers, lines)
+        if (preset.shapeType === 'line') {
+          return { ...base, type: 'shape', shapeType: 'line', backgroundColor: getLineColor(spPr) || fill || '#000000', zIndex: 6 };
+        }
+        if (preset.shapeType === 'arrow') {
+          return { ...base, type: 'shape', shapeType: 'arrow', backgroundColor: fill || '#000000', zIndex: 6 };
+        }
+        if (fill) {
+          return {
+            ...base,
+            type: 'shape',
+            shapeType: preset.shapeType === 'circle' ? 'circle' : 'rectangle',
+            ...(preset.shapeType === 'rectangle' ? { borderRadius: preset.borderRadius || 0 } : {}),
+            backgroundColor: fill,
+            zIndex: 5,
+          };
+        }
+        return null;
+      };
+      
+      // Parse a connector (straight/elbow line) into a line element
+      const parseCxnSp = (inner: string, t: Trans): SlideElement | null => {
+        const spPrMatch = inner.match(/<p:spPr>([\s\S]*?)<\/p:spPr>/);
+        if (!spPrMatch) return null;
+        const xfrm = spPrMatch[1].match(/<a:xfrm[^>]*>([\s\S]*?)<\/a:xfrm>/);
+        if (!xfrm) return null;
+        const tr = extractTransform(xfrm[0] + xfrm[1]);
+        if (!tr) return null;
+        const w = Math.round(tr.w * t.a);
+        const h = Math.round(tr.h * t.d);
+        if (w < 3 || h < 3) return null;
+        return {
+          id: `ln-${Date.now()}-${idx}-${lineCounter++}`,
+          type: 'shape',
+          shapeType: 'line',
+          x: Math.round(tr.x * t.a + t.tx),
+          y: Math.round(tr.y * t.d + t.ty),
+          width: w,
+          height: h,
+          backgroundColor: getLineColor(spPrMatch[1]) || '#000000',
+          zIndex: 6,
+        };
+      };
+      
+      // Parse a graphic frame -> table (charts/smartart are not rendered on the canvas, skipped)
+      const parseGraphicFrame = (inner: string, t: Trans): SlideElement[] => {
+        const xfrm = inner.match(/<a:xfrm[^>]*>([\s\S]*?)<\/a:xfrm>/);
+        if (!xfrm) return [];
+        const tr = extractTransform(xfrm[0] + xfrm[1]);
+        if (!tr) return [];
+        const w = Math.round(tr.w * t.a);
+        const h = Math.round(tr.h * t.d);
+        if (w < 10 || h < 10) return [];
         
-        // Get font size
-        let fontSize = 18;
-        const szMatch = txBody.match(/sz="(\d+)"/);
-        if (szMatch) fontSize = Math.round(parseInt(szMatch[1]) / 100);
-        fontSize = Math.max(8, Math.min(fontSize, 72));
+        const tbl = inner.match(/<a:tbl>([\s\S]*?)<\/a:tbl>/);
+        if (!tbl) return [];
+        const tblXml = tbl[1];
         
-        // Get alignment
-        let textAlign: 'left' | 'center' | 'right' = 'left';
-        if (txBody.includes('algn="ctr"')) textAlign = 'center';
-        else if (txBody.includes('algn="r"')) textAlign = 'right';
-        
-        // Get bold
-        const fontWeight = txBody.includes('b="1"') ? 'bold' : 'normal';
-        
-        // Get color
-        let color = '#000000';
-        const colorMatch = txBody.match(/<a:srgbClr val="([A-Fa-f0-9]{6})"/);
-        if (colorMatch) color = '#' + colorMatch[1];
-        
-        if (!slideTitle && text.length < 100) {
-          slideTitle = text.split('\n')[0];
+        const rows: TableCell[][] = [];
+        const rowRegex = /<a:tr(?=\s|>)[^>]*>([\s\S]*?)<\/a:tr>/g;
+        let rowMatch;
+        while ((rowMatch = rowRegex.exec(tblXml)) !== null) {
+          const cells: TableCell[] = [];
+          const cellRegex = /<a:tc>([\s\S]*?)<\/a:tc>/g;
+          let cellMatch;
+          while ((cellMatch = cellRegex.exec(rowMatch[1])) !== null) {
+            const cellXml = cellMatch[1];
+            const text = [...cellXml.matchAll(/<a:t>([\s\S]*?)<\/a:t>/g)]
+              .map(m => m[1])
+              .join('')
+              .trim();
+            const tcPr = cellXml.match(/<a:tcPr>([\s\S]*?)<\/a:tcPr>/);
+            let backgroundColor: string | undefined;
+            if (tcPr) {
+              const solid = tcPr[1].match(/<a:solidFill>([\s\S]*?)<\/a:solidFill>/);
+              if (solid) backgroundColor = parseSolidColor(solid[1]) || undefined;
+            }
+            const txBody = cellXml.match(/<p:txBody>([\s\S]*?)<\/p:txBody>/);
+            let align: 'left' | 'center' | 'right' = 'left';
+            if (txBody && txBody[1].includes('algn="ctr"')) align = 'center';
+            else if (txBody && txBody[1].includes('algn="r"')) align = 'right';
+            cells.push({
+              content: text || ' ',
+              ...(backgroundColor ? { backgroundColor } : {}),
+              fontWeight: cellXml.includes('b="1"') ? 'bold' as const : undefined,
+              textAlign: align,
+            });
+          }
+          rows.push(cells);
         }
         
-        console.log(`Text "${text.substring(0, 30)}..." at (${transform.x}, ${transform.y}) size ${transform.w}x${transform.h}`);
-        
-        elements.push({
-          id: `txt-${Date.now()}-${idx}-${textIndex++}`,
-          type: 'text',
-          x: transform.x,
-          y: transform.y,
-          width: transform.w,
-          height: transform.h,
-          content: text,
-          fontSize,
-          fontWeight: fontWeight as 'normal' | 'bold',
-          textAlign,
-          color,
-          zIndex: 10, // Text on top of images
+        if (rows.length === 0) return [];
+        const cols = Math.max(...rows.map(r => r.length));
+        const filledRows = rows.map(r => {
+          const row = [...r];
+          while (row.length < cols) row.push({ content: ' ' });
+          return row;
         });
+        
+        return [{
+          id: `tbl-${Date.now()}-${idx}-${tableCounter++}`,
+          type: 'table',
+          x: Math.round(tr.x * t.a + t.tx),
+          y: Math.round(tr.y * t.d + t.ty),
+          width: w,
+          height: h,
+          tableConfig: {
+            rows: filledRows.length,
+            cols,
+            cells: filledRows,
+            headerRow: true,
+            headerCol: false,
+            borderColor: '#d1d5db',
+            borderWidth: 1,
+            cellPadding: 6,
+            alternateRowColors: true,
+            alternateColor: '#f9fafb',
+            headerBgColor: '#e5e7eb',
+            headerTextColor: '#111827',
+          },
+          zIndex: 15,
+        }];
+      };
+      
+      // Recursively scan a slide (or group) XML for all top-level blocks
+      const scan = async (xml: string, t: Trans): Promise<SlideElement[]> => {
+        const out: SlideElement[] = [];
+        const tags = ['p:grpSp', 'p:sp', 'p:pic', 'p:cxnSp', 'p:graphicFrame'];
+        let pos = 0;
+        while (pos < xml.length) {
+          let bestTag: string | null = null;
+          let bestIdx = -1;
+          for (const tag of tags) {
+            const idx = findOpenTag(xml, tag, pos);
+            if (idx !== -1 && (bestIdx === -1 || idx < bestIdx)) {
+              bestTag = tag;
+              bestIdx = idx;
+            }
+          }
+          if (!bestTag) break;
+          const block = extractBlock(xml, bestTag, bestIdx);
+          if (!block) break;
+          pos = block.end;
+          const { inner } = block;
+          
+          if (bestTag === 'p:grpSp') {
+            const grpPr = inner.match(/<p:grpSpPr>([\s\S]*?)<\/p:grpSpPr>/);
+            const src = grpPr ? grpPr[1] : inner;
+            const xfrm = src.match(/<a:xfrm[^>]*>([\s\S]*?)<\/a:xfrm>/);
+            let g = IDENTITY;
+            if (xfrm) {
+              const x = xfrm[1];
+              const off = x.match(/<a:off[^>]*x="(\d+)"[^>]*y="(\d+)"/);
+              const ext = x.match(/<a:ext[^>]*cx="(\d+)"[^>]*cy="(\d+)"/);
+              const chOff = x.match(/<a:chOff[^>]*x="(\d+)"[^>]*y="(\d+)"/);
+              const chExt = x.match(/<a:chExt[^>]*cx="(\d+)"[^>]*cy="(\d+)"/);
+              if (off && ext && chOff && chExt) {
+                const ow = parseInt(ext[1]);
+                const oh = parseInt(ext[2]);
+                const cw = parseInt(chExt[1]);
+                const ch = parseInt(chExt[2]);
+                if (cw > 0 && ch > 0) {
+                  const sx = ow / cw;
+                  const sy = oh / ch;
+                  g = {
+                    a: sx,
+                    d: sy,
+                    tx: emuToPixelX(parseInt(off[1])) - sx * emuToPixelX(parseInt(chOff[1])),
+                    ty: emuToPixelY(parseInt(off[2])) - sy * emuToPixelY(parseInt(chOff[2])),
+                  };
+                }
+              }
+            }
+            const combined: Trans = { a: t.a * g.a, d: t.d * g.d, tx: t.a * g.tx + t.tx, ty: t.d * g.ty + t.ty };
+            out.push(...(await scan(inner, combined)));
+          } else if (bestTag === 'p:pic') {
+            const el = await parsePic(inner, t);
+            if (el) out.push(el);
+          } else if (bestTag === 'p:sp') {
+            const el = parseSp(inner, t);
+            if (el) out.push(el);
+          } else if (bestTag === 'p:cxnSp') {
+            const el = parseCxnSp(inner, t);
+            if (el) out.push(el);
+          } else if (bestTag === 'p:graphicFrame') {
+            out.push(...parseGraphicFrame(inner, t));
+          }
+        }
+        return out;
+      };
+      
+      // Slide background color
+      let backgroundColor = '#ffffff';
+      const bgMatch = slideXml.match(/<p:bg>([\s\S]*?)<\/p:bg>/);
+      if (bgMatch) {
+        const solid = bgMatch[1].match(/<a:solidFill>([\s\S]*?)<\/a:solidFill>/);
+        if (solid) {
+          const c = parseSolidColor(solid[1]);
+          if (c) backgroundColor = c;
+        }
       }
+      
+      elements.push(...(await scan(slideXml, IDENTITY)));
       
       slides.push({
         id: `slide-${Date.now()}-${idx}`,
         type: idx === 0 ? 'cover' : 'content',
         title: slideTitle || `Slide ${idx + 1}`,
-        backgroundColor: '#ffffff',
+        backgroundColor,
         textColor: '#000000',
         elements: elements.length > 0 ? elements : undefined,
       });
       
-      console.log(`Slide ${idx + 1} elements:`, elements.map(e => ({
+      console.log(`Slide ${idx + 1} (${elements.length} elements):`, elements.map(e => ({
         type: e.type,
         x: e.x,
         y: e.y,
         w: e.width,
         h: e.height,
-        content: e.type === 'text' ? (e.content?.substring(0, 20) + '...') : 'image'
+        content: e.type === 'text' ? (e.content?.substring(0, 20) + '...') : e.type
       })));
     }
     
