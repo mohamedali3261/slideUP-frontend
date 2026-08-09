@@ -108,7 +108,7 @@ export const PresentationMode = ({
         
         const scaleX = containerWidth / slideWidth;
         const scaleY = containerHeight / slideHeight;
-        // Use higher scale for mobile (0.98) and lower for desktop (0.95)
+        // Use higher scale for mobile to ensure full visibility
         const isMobile = containerWidth < 768;
         const scale = Math.min(scaleX, scaleY) * (isMobile ? 0.98 : 0.95);
         
@@ -801,62 +801,62 @@ export const PresentationMode = ({
 
       {/* Bottom Toolbar */}
       {showToolbar && (
-        <div className="absolute bottom-6 left-1/2 -translate-x-1/2 pointer-events-auto z-50 max-w-[calc(100vw-1rem)]">
-          <div className="flex items-center gap-1 bg-black/80 backdrop-blur-md rounded-2xl px-4 py-2 shadow-2xl overflow-x-auto min-w-max scrollbar-thin">
+        <div className="absolute bottom-4 sm:bottom-6 left-1/2 -translate-x-1/2 pointer-events-auto z-50 max-w-[calc(100vw-0.5rem)] sm:max-w-[calc(100vw-1rem)]">
+          <div className="flex items-center gap-0.5 sm:gap-1 bg-black/80 backdrop-blur-md rounded-xl sm:rounded-2xl px-2 sm:px-4 py-1.5 sm:py-2 shadow-2xl overflow-x-auto min-w-max scrollbar-thin">
             {/* Previous */}
-            <Button 
-              variant="ghost" 
-              size="icon" 
-              className="text-white hover:bg-white/20 h-10 w-10"
+            <Button
+              variant="ghost"
+              size="icon"
+              className="text-white hover:bg-white/20 h-8 w-8 sm:h-10 sm:w-10"
               onClick={goToPrevious}
               disabled={currentIndex === 0}
             >
-              <ChevronLeft className="w-5 h-5" />
+              <ChevronLeft className="w-4 h-4 sm:w-5 sm:h-5" />
             </Button>
 
             {/* Slide Counter */}
-            <div className="px-3 text-white text-center">
-              <div className="text-sm font-medium min-w-[60px]">
+            <div className="px-2 sm:px-3 text-white text-center">
+              <div className="text-xs sm:text-sm font-medium min-w-[50px] sm:min-w-[60px]">
                 {currentIndex + 1} / {slides.length}
               </div>
               {animatedElements.length > 0 && (
-                <div className="text-white/60 text-xs leading-tight">
+                <div className="text-white/60 text-[10px] sm:text-xs leading-tight">
                   ({currentElementIndex}/{animatedElements.length})
                 </div>
               )}
             </div>
 
             {/* Next */}
-            <Button 
-              variant="ghost" 
-              size="icon" 
-              className="text-white hover:bg-white/20 h-10 w-10"
+            <Button
+              variant="ghost"
+              size="icon"
+              className="text-white hover:bg-white/20 h-8 w-8 sm:h-10 sm:w-10"
               onClick={goToNext}
               disabled={currentIndex === slides.length - 1 && currentElementIndex >= animatedElements.length}
             >
-              <ChevronRight className="w-5 h-5" />
+              <ChevronRight className="w-4 h-4 sm:w-5 sm:h-5" />
             </Button>
 
-            <div className="w-px h-6 bg-white/20 mx-2" />
+            <div className="w-px h-5 sm:h-6 bg-white/20 mx-1 sm:mx-2" />
 
             {/* Element Play/Pause - Only show if there are animated elements */}
             {animatedElements.length > 0 && (
               <>
-                <Button 
-                  variant="ghost" 
-                  size="icon" 
-                  className={cn("text-white hover:bg-white/20 h-10 w-10", isElementPlaying && "bg-green-500/50")}
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className={cn("text-white hover:bg-white/20 h-8 w-8 sm:h-10 sm:w-10", isElementPlaying && "bg-green-500/50")}
                   onClick={toggleElementPlay}
                   title={isElementPlaying ? (language === 'ar' ? 'إيقاف العرض التلقائي' : 'Pause Auto-play') : (language === 'ar' ? 'تشغيل تلقائي' : 'Auto-play')}
                 >
-                  {isElementPlaying ? <Pause className="w-4 h-4" /> : <Play className="w-4 h-4" />}
+                  {isElementPlaying ? <Pause className="w-3.5 h-3.5 sm:w-4 sm:h-4" /> : <Play className="w-3.5 h-3.5 sm:w-4 sm:h-4" />}
                 </Button>
 
                 {/* Show/Hide All Elements Toggle */}
-                <Button 
-                  variant="ghost" 
-                  size="icon" 
-                  className="text-white hover:bg-white/20 h-10 w-10"
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="text-white hover:bg-white/20 h-8 w-8 sm:h-10 sm:w-10"
                   onClick={() => {
                     if (currentElementIndex >= animatedElements.length) {
                       // Hide all animated elements
@@ -874,14 +874,14 @@ export const PresentationMode = ({
                   }}
                   title={currentElementIndex >= animatedElements.length ? (language === 'ar' ? 'إخفاء الكل' : 'Hide All') : (language === 'ar' ? 'إظهار الكل' : 'Show All')}
                 >
-                  {currentElementIndex >= animatedElements.length ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                  {currentElementIndex >= animatedElements.length ? <EyeOff className="w-3.5 h-3.5 sm:w-4 sm:h-4" /> : <Eye className="w-3.5 h-3.5 sm:w-4 sm:h-4" />}
                 </Button>
 
                 {/* Speed Control */}
                 <select
                   value={elementPlaySpeed}
                   onChange={(e) => setElementPlaySpeed(Number(e.target.value))}
-                  className="h-8 px-2 text-xs rounded-md bg-white/10 text-white border-0 cursor-pointer hover:bg-white/20"
+                  className="h-7 sm:h-8 px-1.5 sm:px-2 text-[10px] sm:text-xs rounded-md bg-white/10 text-white border-0 cursor-pointer hover:bg-white/20"
                   title={language === 'ar' ? 'سرعة العرض' : 'Animation Speed'}
                 >
                   <option value={500} className="bg-black">0.5s</option>
@@ -893,94 +893,94 @@ export const PresentationMode = ({
               </>
             )}
 
-            <div className="w-px h-6 bg-white/20 mx-2" />
+            <div className="w-px h-5 sm:h-6 bg-white/20 mx-1 sm:mx-2" />
 
             {/* Laser Pointer */}
-            <Button 
-              variant="ghost" 
-              size="icon" 
-              className={cn("text-white hover:bg-white/20 h-10 w-10", showLaser && "bg-red-500/50")}
+            <Button
+              variant="ghost"
+              size="icon"
+              className={cn("text-white hover:bg-white/20 h-8 w-8 sm:h-10 sm:w-10", showLaser && "bg-red-500/50")}
               onClick={() => setShowLaser(!showLaser)}
               title={language === 'ar' ? 'مؤشر ليزر' : 'Laser Pointer'}
             >
-              <Circle className={cn("w-4 h-4", showLaser ? "fill-red-500 text-red-500" : "")} />
+              <Circle className={cn("w-3.5 h-3.5 sm:w-4 sm:h-4", showLaser ? "fill-red-500 text-red-500" : "")} />
             </Button>
 
             {/* Blackout */}
-            <Button 
-              variant="ghost" 
-              size="icon" 
-              className="text-white hover:bg-white/20 h-10 w-10"
+            <Button
+              variant="ghost"
+              size="icon"
+              className="text-white hover:bg-white/20 h-8 w-8 sm:h-10 sm:w-10"
               onClick={() => setIsBlackout(true)}
               title={language === 'ar' ? 'شاشة سوداء' : 'Blackout'}
             >
-              <Square className="w-4 h-4 fill-current" />
+              <Square className="w-3.5 h-3.5 sm:w-4 sm:h-4 fill-current" />
             </Button>
 
             {/* Drawing */}
-            <Button 
-              variant="ghost" 
-              size="icon" 
-              className={cn("text-white hover:bg-white/20 h-10 w-10", isDrawingMode && "bg-white/20")}
+            <Button
+              variant="ghost"
+              size="icon"
+              className={cn("text-white hover:bg-white/20 h-8 w-8 sm:h-10 sm:w-10", isDrawingMode && "bg-white/20")}
               onClick={() => setIsDrawingMode(!isDrawingMode)}
               title={language === 'ar' ? 'أدوات الرسم' : 'Drawing'}
             >
-              <Pencil className="w-4 h-4" />
+              <Pencil className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
             </Button>
 
-            <div className="w-px h-6 bg-white/20 mx-2" />
+            <div className="w-px h-5 sm:h-6 bg-white/20 mx-1 sm:mx-2" />
 
             {/* Thumbnails Grid */}
-            <Button 
-              variant="ghost" 
-              size="icon" 
-              className={cn("text-white hover:bg-white/20 h-10 w-10", showThumbnails && "bg-white/20")}
+            <Button
+              variant="ghost"
+              size="icon"
+              className={cn("text-white hover:bg-white/20 h-8 w-8 sm:h-10 sm:w-10", showThumbnails && "bg-white/20")}
               onClick={() => setShowThumbnails(!showThumbnails)}
               title={language === 'ar' ? 'كل الشرائح' : 'All Slides'}
             >
-              <Grid3X3 className="w-4 h-4" />
+              <Grid3X3 className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
             </Button>
 
             {/* Notes */}
-            <Button 
-              variant="ghost" 
-              size="icon" 
-              className={cn("text-white hover:bg-white/20 h-10 w-10", showNotes && "bg-white/20")}
+            <Button
+              variant="ghost"
+              size="icon"
+              className={cn("text-white hover:bg-white/20 h-8 w-8 sm:h-10 sm:w-10", showNotes && "bg-white/20")}
               onClick={() => setShowNotes(!showNotes)}
               title={language === 'ar' ? 'الملاحظات' : 'Notes'}
             >
-              <StickyNote className="w-4 h-4" />
+              <StickyNote className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
             </Button>
 
             {/* Help */}
-            <Button 
-              variant="ghost" 
-              size="icon" 
-              className="text-white hover:bg-white/20 h-10 w-10"
+            <Button
+              variant="ghost"
+              size="icon"
+              className="text-white hover:bg-white/20 h-8 w-8 sm:h-10 sm:w-10"
               onClick={() => setShowShortcuts(true)}
               title={language === 'ar' ? 'المساعدة' : 'Help'}
             >
               <HelpCircle className="w-4 h-4" />
             </Button>
 
-            <div className="w-px h-6 bg-white/20 mx-2" />
+            <div className="w-px h-5 sm:h-6 bg-white/20 mx-1 sm:mx-2" />
 
             {/* Fullscreen */}
-            <Button 
-              variant="ghost" 
-              size="icon" 
-              className="text-white hover:bg-white/20 h-10 w-10"
+            <Button
+              variant="ghost"
+              size="icon"
+              className="text-white hover:bg-white/20 h-8 w-8 sm:h-10 sm:w-10"
               onClick={toggleFullscreen}
               title={language === 'ar' ? 'ملء الشاشة' : 'Fullscreen'}
             >
-              {isFullscreen ? <Minimize2 className="w-4 h-4" /> : <Maximize2 className="w-4 h-4" />}
+              {isFullscreen ? <Minimize2 className="w-3.5 h-3.5 sm:w-4 sm:h-4" /> : <Maximize2 className="w-3.5 h-3.5 sm:w-4 sm:h-4" />}
             </Button>
 
             {/* Close */}
-            <Button 
-              variant="ghost" 
-              size="icon" 
-              className="text-white hover:bg-white/20 h-10 w-10"
+            <Button
+              variant="ghost"
+              size="icon"
+              className="text-white hover:bg-white/20 h-8 w-8 sm:h-10 sm:w-10"
               onClick={onClose}
               title={language === 'ar' ? 'إغلاق' : 'Exit'}
             >

@@ -401,9 +401,9 @@ export const PreviewMode = ({
     // Calculate scale to fit container while maintaining aspect ratio
     const scaleX = containerSize.width / previewCanvasWidth;
     const scaleY = containerSize.height / previewCanvasHeight;
-    // Use higher scale for mobile (0.95) and lower for desktop (0.86)
+    // Use higher scale for mobile to ensure full visibility
     const isMobileContainer = containerSize.width < 768;
-    const scale = Math.min(scaleX, scaleY) * (isMobileContainer ? 0.95 : 0.86);
+    const scale = Math.min(scaleX, scaleY) * (isMobileContainer ? 0.98 : 0.92);
     
     // Check if slide has visible content
     const hasElements = slide.elements && slide.elements.length > 0;
@@ -563,18 +563,18 @@ export const PreviewMode = ({
           {language === 'ar' ? 'معاينة العرض التقديمي' : 'Presentation Preview'}
         </DialogTitle>
         {/* Header */}
-        <div className="flex items-center justify-between flex-wrap gap-2 px-3 sm:px-4 py-2 border-b bg-card">
-          <div className="flex items-center gap-4 min-w-0">
-            <h2 className="font-semibold flex items-center gap-2">
-              <Monitor className="w-5 h-5" />
-              {language === 'ar' ? 'معاينة' : 'Preview'}
+        <div className="flex items-center justify-between flex-wrap gap-2 px-2 sm:px-4 py-1.5 sm:py-2 border-b bg-card">
+          <div className="flex items-center gap-2 sm:gap-4 min-w-0">
+            <h2 className="font-semibold flex items-center gap-1 sm:gap-2 text-sm sm:text-base">
+              <Monitor className="w-4 h-4 sm:w-5 sm:h-5" />
+              <span className="hidden sm:inline">{language === 'ar' ? 'معاينة' : 'Preview'}</span>
             </h2>
             <div className="flex flex-col items-start gap-0.5">
-              <Badge variant="outline">
+              <Badge variant="outline" className="text-[10px] sm:text-xs px-1.5 sm:px-2">
                 {currentSlideIndex + 1} / {slides.length}
               </Badge>
               {allElements.length > 0 && (
-                <Badge variant="secondary" className="text-[10px] px-2">
+                <Badge variant="secondary" className="text-[8px] sm:text-[10px] px-1.5 sm:px-2">
                   {language === 'ar' ? 'العناصر: ' : 'Elements: '}
                   {currentAnimationIndex} / {allElements.length}
                 </Badge>
@@ -582,24 +582,18 @@ export const PreviewMode = ({
             </div>
           </div>
 
-          <div className="flex items-center gap-2 ml-auto">
+          <div className="flex items-center gap-1 sm:gap-2 ml-auto">
             {/* Play/Pause Button */}
             <Button
               variant={isPlaying ? 'default' : 'outline'}
               size="sm"
               onClick={togglePlay}
-              className="gap-1.5 px-2 sm:px-4"
+              className="gap-1 px-1.5 sm:px-2 sm:px-4 h-7 sm:h-8"
             >
               {isPlaying ? (
-                <>
-                  <Pause className="w-4 h-4" />
-                  <span className="hidden sm:inline">{language === 'ar' ? 'إيقاف' : 'Pause'}</span>
-                </>
+                <Pause className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
               ) : (
-                <>
-                  <Play className="w-4 h-4" />
-                  <span className="hidden sm:inline">{language === 'ar' ? 'تشغيل' : 'Play'}</span>
-                </>
+                <Play className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
               )}
             </Button>
 
@@ -607,7 +601,7 @@ export const PreviewMode = ({
             <select
               value={playSpeed}
               onChange={(e) => setPlaySpeed(Number(e.target.value))}
-              className="h-8 px-2 text-xs rounded-md border bg-background"
+              className="h-7 sm:h-8 px-1.5 sm:px-2 text-[10px] sm:text rounded-md border bg-background"
             >
               <option value={500}>0.5s</option>
               <option value={1000}>1s</option>
@@ -621,21 +615,19 @@ export const PreviewMode = ({
               variant={showNotes ? 'default' : 'outline'}
               size="sm"
               onClick={() => setShowNotes(!showNotes)}
-              className="px-2 sm:px-4"
+              className="px-1.5 sm:px-2 sm:px-4 h-7 sm:h-8"
             >
-              <StickyNote className="w-4 h-4" />
-              <span className="hidden sm:inline">{language === 'ar' ? 'الملاحظات' : 'Notes'}</span>
+              <StickyNote className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
             </Button>
 
             {/* Start Presentation */}
-            <Button size="sm" onClick={onStartPresentation} className="px-2 sm:px-4">
-              <Maximize className="w-4 h-4" />
-              <span className="hidden sm:inline">{language === 'ar' ? 'بدء العرض' : 'Start Presentation'}</span>
+            <Button size="sm" onClick={onStartPresentation} className="px-1.5 sm:px-2 sm:px-4 h-7 sm:h-8">
+              <Maximize className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
             </Button>
 
             {/* Close */}
-            <Button variant="ghost" size="icon" onClick={onClose}>
-              <X className="w-5 h-5" />
+            <Button variant="ghost" size="icon" onClick={onClose} className="h-7 w-7 sm:h-8 sm:w-8">
+              <X className="w-4 h-4 sm:w-5 sm:h-5" />
             </Button>
           </div>
         </div>
@@ -682,14 +674,14 @@ export const PreviewMode = ({
         </div>
 
         {/* Footer - Navigation */}
-        <div className="flex items-center justify-between flex-wrap gap-2 px-3 sm:px-4 py-2 border-t bg-card">
+        <div className="flex items-center justify-between flex-wrap gap-1.5 sm:gap-2 px-2 sm:px-4 py-1.5 sm:py-2 border-t bg-card">
           {/* Slide Thumbnails */}
-          <div className="flex items-center gap-2 overflow-x-auto max-w-[55%] sm:max-w-[60%] flex-1">
+          <div className="flex items-center gap-1 sm:gap-2 overflow-x-auto max-w-[45%] sm:max-w-[60%] flex-1">
             {slides.map((slide, index) => (
               <button
                 key={slide.id}
                 onClick={() => onSlideChange(index)}
-                className={`flex-shrink-0 w-14 sm:w-16 h-10 rounded border-2 overflow-hidden transition-all ${
+                className={`flex-shrink-0 w-10 sm:w-14 sm:w-16 h-8 sm:h-10 rounded border-2 overflow-hidden transition-all ${
                   index === currentSlideIndex
                     ? 'border-primary ring-2 ring-primary/20'
                     : 'border-border hover:border-primary/50'
@@ -698,7 +690,7 @@ export const PreviewMode = ({
               >
                 <div className="w-full h-full flex items-center justify-center">
                   <span
-                    className="text-[8px] font-bold truncate px-1"
+                    className="text-[7px] sm:text-[8px] font-bold truncate px-0.5 sm:px-1"
                     style={{ color: slide.textColor }}
                   >
                     {index + 1}
@@ -709,26 +701,28 @@ export const PreviewMode = ({
           </div>
 
           {/* Navigation Buttons */}
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1 sm:gap-2">
             <Button
               variant="outline"
               size="sm"
               onClick={handlePrevSlide}
               disabled={currentSlideIndex === 0 && currentAnimationIndex === 0}
+              className="h-7 sm:h-8 px-1.5 sm:px-2"
             >
-              <ChevronLeft className="w-4 h-4" />
+              <ChevronLeft className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
               <span className="hidden sm:inline">{language === 'ar' ? 'السابق' : 'Previous'}</span>
             </Button>
             <Button
               size="sm"
               onClick={handleNextSlide}
               disabled={currentSlideIndex === slides.length - 1 && currentAnimationIndex >= allElements.length}
+              className="h-7 sm:h-8 px-1.5 sm:px-2"
             >
               <span className="hidden sm:inline">{currentAnimationIndex < allElements.length 
                 ? (language === 'ar' ? 'التالي' : 'Next')
                 : (language === 'ar' ? 'الشريحة التالية' : 'Next Slide')
               }</span>
-              <ChevronRight className="w-4 h-4" />
+              <ChevronRight className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
             </Button>
           </div>
         </div>
