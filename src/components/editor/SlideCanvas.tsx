@@ -4,7 +4,7 @@ import { SlideTemplate, SlideElement } from '@/data/templates';
 import { DraggableElement } from './DraggableElement';
 import { CanvasContextMenu } from './CanvasContextMenu';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
-import { Maximize2, ZoomIn, ZoomOut, Move, PanelLeft, PanelRight, Ruler, Magnet, Hand } from 'lucide-react';
+import { Maximize2, ZoomIn, ZoomOut, PanelLeft, PanelRight, Magnet } from 'lucide-react';
 import { toast } from 'sonner';
 
 // Custom icon storage key (same as IconLibrary)
@@ -775,29 +775,8 @@ export const SlideCanvas = ({
       {/* Toolbar - Fixed in Center */}
       <div className="relative flex items-center px-2 py-1.5 bg-background/80 backdrop-blur-sm border-b text-xs overflow-x-auto scrollbar-thin">
         <div className="flex items-center justify-center gap-1.5 flex-nowrap w-max min-w-full mx-auto">
-        {/* Left Side - Rulers & Guides Toggles */}
+        {/* Left Side - Guides Toggles */}
         <div className="flex items-center gap-1 flex-shrink-0">
-          {onToggleRulers && (
-            <Tooltip delayDuration={300}>
-              <TooltipTrigger asChild>
-                <button
-                  onClick={onToggleRulers}
-                  className={`p-1.5 rounded-md transition-colors ${
-                    showRulers ? 'bg-primary/10 text-primary' : 'text-muted-foreground hover:bg-muted'
-                  }`}
-                  title={language === 'ar' ? 'المسطرة' : 'Rulers'}
-                >
-                  <Ruler size={15} />
-                </button>
-              </TooltipTrigger>
-              <TooltipContent className="bg-gradient-to-r from-primary to-purple-600 text-white border-none shadow-lg px-3 py-1.5 text-xs font-medium rounded-lg">
-                <div className="flex items-center gap-1.5">
-                  <Ruler className="w-3 h-3" />
-                  {language === 'ar' ? 'إظهار/إخفاء المسطرة' : 'Show/Hide Rulers'}
-                </div>
-              </TooltipContent>
-            </Tooltip>
-          )}
           {onToggleGuides && (
             <Tooltip delayDuration={300}>
               <TooltipTrigger asChild>
@@ -884,15 +863,6 @@ export const SlideCanvas = ({
           
           <div className="w-px h-5 bg-border mx-1" />
           
-          {/* Pan Hint */}
-          <span className="text-muted-foreground hidden sm:flex items-center gap-1.5 px-1">
-            <Move size={14} />
-            <span className="text-[11px]">Space+Drag</span>
-          </span>
-          <span className="text-muted-foreground flex sm:hidden items-center gap-1.5 px-1">
-            <Hand size={14} />
-            <span className="text-[11px]">{language === 'ar' ? 'اسحب للتحريك، قرصة للتكبير' : 'Drag to pan, pinch to zoom'}</span>
-          </span>
         </div>
         
         {/* Right Side - Panel Toggle Buttons */}

@@ -20,16 +20,19 @@ import {
   ArrowUp,
   ArrowLeft,
   RotateCcw,
+  RotateCw,
   ZoomIn,
   ZoomOut,
   Shuffle,
   Play,
   Pause,
   Eye,
+  EyeOff,
   Layers,
   Wand2,
   FlipHorizontal,
   FlipVertical,
+  FlipHorizontal2,
   Move3d,
   Maximize2,
   Minimize2,
@@ -42,6 +45,19 @@ import {
   Triangle,
   Hexagon,
   Settings2,
+  Eraser,
+  Columns2,
+  Rows2,
+  Disc3,
+  BarChart3,
+  Rotate3d,
+  Shrink,
+  Palette,
+  Contrast,
+  Moon,
+  Sun,
+  Underline,
+  Bold,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -56,6 +72,16 @@ export type AnimationType =
   | 'rotate' | 'rotate-in' | 'rotate-out'
   | 'bounce' | 'bounce-in' | 'bounce-left' | 'bounce-right'
   | 'elastic' | 'elastic-in' | 'elastic-out'
+  | 'wipe-up' | 'wipe-down' | 'wipe-left' | 'wipe-right'
+  | 'split-vertical' | 'split-horizontal'
+  | 'wheel' | 'random-bars' | 'grow-turn' | 'swivel' | 'rise-up' | 'spiral-in'
+  // Emphasis animations (PowerPoint-style)
+  | 'spin' | 'teeter' | 'grow-shrink' | 'color-pulse' | 'desaturate'
+  | 'darken' | 'lighten' | 'transparency' | 'underline' | 'bold-reveal'
+  // Exit animations
+  | 'fade-out' | 'fly-out-up' | 'fly-out-down' | 'fly-out-left' | 'fly-out-right'
+  | 'zoom-out-exit' | 'bounce-out' | 'wipe-out-left' | 'wipe-out-right'
+  | 'shrink-out' | 'swivel-out' | 'spin-out' | 'rise-out'
   // Attention animations
   | 'pulse' | 'shake' | 'wobble' | 'swing' | 'tada' | 'jello' | 'heartbeat' | 'flash' | 'rubber-band'
   // Special animations
@@ -72,7 +98,8 @@ export type TransitionType =
   | 'cube' | 'cube-left' | 'cube-right'
   | 'carousel' | 'cards' | 'fold' | 'unfold'
   | 'glitch' | 'morph' | 'dissolve' | 'wipe-left' | 'wipe-right' | 'wipe-up' | 'wipe-down'
-  | 'circle' | 'diamond' | 'curtain' | 'blinds' | 'pixelate';
+  | 'circle' | 'diamond' | 'curtain' | 'blinds' | 'pixelate'
+  | 'cover' | 'reveal' | 'gallery' | 'conveyor' | 'door' | 'fall-over' | 'vortex' | 'ripple';
 
 export interface Animation {
   type: AnimationType;
@@ -120,6 +147,18 @@ const ANIMATION_CATEGORIES = {
       { value: 'rotate-in', label: { en: 'Rotate In', ar: 'دوران للداخل' }, icon: RotateCcw },
       { value: 'bounce-in', label: { en: 'Bounce In', ar: 'ارتداد' }, icon: Shuffle },
       { value: 'elastic-in', label: { en: 'Elastic In', ar: 'مرن' }, icon: Zap },
+      { value: 'wipe-up', label: { en: 'Wipe Up', ar: 'مسح للأعلى' }, icon: Eraser },
+      { value: 'wipe-down', label: { en: 'Wipe Down', ar: 'مسح للأسفل' }, icon: Eraser },
+      { value: 'wipe-left', label: { en: 'Wipe Left', ar: 'مسح لليسار' }, icon: Eraser },
+      { value: 'wipe-right', label: { en: 'Wipe Right', ar: 'مسح لليمين' }, icon: Eraser },
+      { value: 'split-vertical', label: { en: 'Split Vertical', ar: 'انقسام رأسي' }, icon: Rows2 },
+      { value: 'split-horizontal', label: { en: 'Split Horizontal', ar: 'انقسام أفقي' }, icon: Columns2 },
+      { value: 'wheel', label: { en: 'Wheel', ar: 'عجلة' }, icon: Disc3 },
+      { value: 'random-bars', label: { en: 'Random Bars', ar: 'أشرطة عشوائية' }, icon: BarChart3 },
+      { value: 'grow-turn', label: { en: 'Grow & Turn', ar: 'نمو ودوران' }, icon: Rotate3d },
+      { value: 'swivel', label: { en: 'Swivel', ar: 'دوران محوري' }, icon: RefreshCw },
+      { value: 'rise-up', label: { en: 'Rise Up', ar: 'صعود' }, icon: ArrowUp },
+      { value: 'spiral-in', label: { en: 'Spiral In', ar: 'حلزوني للداخل' }, icon: RotateCcw },
     ],
   },
   attention: {
@@ -135,6 +174,41 @@ const ANIMATION_CATEGORIES = {
       { value: 'heartbeat', label: { en: 'Heartbeat', ar: 'نبض القلب' }, icon: Heart },
       { value: 'flash', label: { en: 'Flash', ar: 'وميض' }, icon: Zap },
       { value: 'rubber-band', label: { en: 'Rubber Band', ar: 'مطاط' }, icon: Maximize2 },
+    ],
+  },
+  emphasis: {
+    label: { en: 'Emphasis', ar: 'تأكيد' },
+    icon: EyeOff,
+    animations: [
+      { value: 'spin', label: { en: 'Spin', ar: 'دوران' }, icon: RotateCw },
+      { value: 'teeter', label: { en: 'Teeter', ar: 'ترنح' }, icon: FlipHorizontal2 },
+      { value: 'grow-shrink', label: { en: 'Grow/Shrink', ar: 'نمو وضمور' }, icon: Shrink },
+      { value: 'color-pulse', label: { en: 'Color Pulse', ar: 'وميض لوني' }, icon: Palette },
+      { value: 'desaturate', label: { en: 'Desaturate', ar: 'إزالة تشبع' }, icon: Contrast },
+      { value: 'darken', label: { en: 'Darken', ar: 'تعتيم' }, icon: Moon },
+      { value: 'lighten', label: { en: 'Lighten', ar: 'تفتيح' }, icon: Sun },
+      { value: 'transparency', label: { en: 'Transparency', ar: 'شفافية' }, icon: EyeOff },
+      { value: 'underline', label: { en: 'Underline', ar: 'تسطير' }, icon: Underline },
+      { value: 'bold-reveal', label: { en: 'Bold Reveal', ar: 'إظهار عريض' }, icon: Bold },
+    ],
+  },
+  exit: {
+    label: { en: 'Exit', ar: 'خروج' },
+    icon: Square,
+    animations: [
+      { value: 'fade-out', label: { en: 'Fade Out', ar: 'تلاشي للخارج' }, icon: Sparkles },
+      { value: 'fly-out-up', label: { en: 'Fly Out Up', ar: 'طيران لأعلى' }, icon: ArrowUp },
+      { value: 'fly-out-down', label: { en: 'Fly Out Down', ar: 'طيران لأسفل' }, icon: ArrowDown },
+      { value: 'fly-out-left', label: { en: 'Fly Out Left', ar: 'طيران لليسار' }, icon: ArrowLeft },
+      { value: 'fly-out-right', label: { en: 'Fly Out Right', ar: 'طيران لليمين' }, icon: ArrowRight },
+      { value: 'zoom-out-exit', label: { en: 'Zoom Out', ar: 'تصغير للخارج' }, icon: ZoomOut },
+      { value: 'bounce-out', label: { en: 'Bounce Out', ar: 'ارتداد للخارج' }, icon: Shuffle },
+      { value: 'wipe-out-left', label: { en: 'Wipe Out Left', ar: 'مسح خارج يسار' }, icon: Eraser },
+      { value: 'wipe-out-right', label: { en: 'Wipe Out Right', ar: 'مسح خارج يمين' }, icon: Eraser },
+      { value: 'shrink-out', label: { en: 'Shrink Out', ar: 'ضمور للخارج' }, icon: Minimize2 },
+      { value: 'swivel-out', label: { en: 'Swivel Out', ar: 'دوران محوري خارج' }, icon: RefreshCw },
+      { value: 'spin-out', label: { en: 'Spin Out', ar: 'دوران للخارج' }, icon: RotateCw },
+      { value: 'rise-out', label: { en: 'Rise Out', ar: 'صعود للخارج' }, icon: ArrowUp },
     ],
   },
   special: {
@@ -222,6 +296,19 @@ const TRANSITION_CATEGORIES = {
       { value: 'glitch', label: { en: 'Glitch', ar: 'خلل' } },
       { value: 'morph', label: { en: 'Morph', ar: 'تحول' } },
       { value: 'pixelate', label: { en: 'Pixelate', ar: 'بكسلة' } },
+    ],
+  },
+  powerpoint: {
+    label: { en: 'PowerPoint', ar: 'باوربوينت' },
+    transitions: [
+      { value: 'cover', label: { en: 'Cover', ar: 'تغطية' } },
+      { value: 'reveal', label: { en: 'Reveal', ar: 'كشف' } },
+      { value: 'gallery', label: { en: 'Gallery', ar: 'معرض' } },
+      { value: 'conveyor', label: { en: 'Conveyor', ar: 'حزام ناقل' } },
+      { value: 'door', label: { en: 'Door', ar: 'باب' } },
+      { value: 'fall-over', label: { en: 'Fall Over', ar: 'سقوط' } },
+      { value: 'vortex', label: { en: 'Vortex', ar: 'دوامة' } },
+      { value: 'ripple', label: { en: 'Ripple', ar: 'تموج' } },
     ],
   },
 };
@@ -702,6 +789,41 @@ const getKeyframeName = (type: AnimationType): string => {
     'elastic': 'kiro-elastic',
     'elastic-in': 'kiro-elastic-in',
     'elastic-out': 'kiro-elastic-out',
+    'wipe-up': 'kiro-wipe-up',
+    'wipe-down': 'kiro-wipe-down',
+    'wipe-left': 'kiro-wipe-left',
+    'wipe-right': 'kiro-wipe-right',
+    'split-vertical': 'kiro-split-vertical',
+    'split-horizontal': 'kiro-split-horizontal',
+    'wheel': 'kiro-wheel',
+    'random-bars': 'kiro-random-bars',
+    'grow-turn': 'kiro-grow-turn',
+    'swivel': 'kiro-swivel',
+    'rise-up': 'kiro-rise-up',
+    'spiral-in': 'kiro-spiral-in',
+    'spin': 'kiro-spin',
+    'teeter': 'kiro-teeter',
+    'grow-shrink': 'kiro-grow-shrink',
+    'color-pulse': 'kiro-color-pulse',
+    'desaturate': 'kiro-desaturate',
+    'darken': 'kiro-darken',
+    'lighten': 'kiro-lighten',
+    'transparency': 'kiro-transparency',
+    'underline': 'kiro-underline',
+    'bold-reveal': 'kiro-bold-reveal',
+    'fade-out': 'kiro-fade-out',
+    'fly-out-up': 'kiro-fly-out-up',
+    'fly-out-down': 'kiro-fly-out-down',
+    'fly-out-left': 'kiro-fly-out-left',
+    'fly-out-right': 'kiro-fly-out-right',
+    'zoom-out-exit': 'kiro-zoom-out-exit',
+    'bounce-out': 'kiro-bounce-out',
+    'wipe-out-left': 'kiro-wipe-out-left',
+    'wipe-out-right': 'kiro-wipe-out-right',
+    'shrink-out': 'kiro-shrink-out',
+    'swivel-out': 'kiro-swivel-out',
+    'spin-out': 'kiro-spin-out',
+    'rise-out': 'kiro-rise-out',
     'pulse': 'kiro-pulse',
     'shake': 'kiro-shake',
     'wobble': 'kiro-wobble',
@@ -771,6 +893,14 @@ export const getTransitionOutStyle = (transition: SlideTransition): React.CSSPro
     'curtain': { transform: 'scaleX(0)' },
     'blinds': { transform: 'scaleY(0)' },
     'pixelate': { filter: 'blur(20px)', opacity: 0 },
+    'cover': { opacity: 0 },
+    'reveal': { transform: 'translateX(-100%)' },
+    'gallery': { transform: 'translateX(-30%) rotate(-4deg) scale(0.9)', opacity: 0.6 },
+    'conveyor': { transform: 'translateX(-55%) rotateY(35deg)', opacity: 0.4 },
+    'door': { transform: 'rotateY(90deg)', transformOrigin: 'left center' },
+    'fall-over': { transform: 'rotateX(85deg)', transformOrigin: 'bottom center', opacity: 0.6 },
+    'vortex': { transform: 'rotate(-25deg) scale(0.4)', opacity: 0 },
+    'ripple': { transform: 'scale(1.15)', filter: 'blur(3px)', opacity: 0.3 },
   };
 
   return styles[transition.type] || {};
@@ -823,6 +953,14 @@ export const getTransitionInStartStyle = (transition: SlideTransition): React.CS
     'curtain': { transform: 'scaleX(0)' },
     'blinds': { transform: 'scaleY(0)' },
     'pixelate': { filter: 'blur(20px)', opacity: 0 },
+    'cover': { transform: 'translateX(100%)' },
+    'reveal': {},
+    'gallery': { transform: 'translateX(60%) rotate(6deg) scale(0.8)', opacity: 0 },
+    'conveyor': { transform: 'translateX(60%) rotateY(-35deg)', opacity: 0 },
+    'door': { transform: 'rotateY(-90deg)', transformOrigin: 'left center', opacity: 0.6 },
+    'fall-over': { transform: 'rotateX(-85deg)', transformOrigin: 'bottom center', opacity: 0.6 },
+    'vortex': { transform: 'rotate(25deg) scale(1.5)', opacity: 0 },
+    'ripple': { transform: 'scale(0.4)', filter: 'blur(8px)', opacity: 0 },
   };
 
   return styles[transition.type] || {};

@@ -91,10 +91,7 @@ export const Editor = () => {
     if (saved !== null) return saved === 'true';
     return !isMobile;
   });
-  const [showRulers, setShowRulers] = useState(() => {
-    const saved = localStorage.getItem('editor-rulers-visible');
-    return saved !== null ? saved === 'true' : true;
-  });
+  const [showRulers, setShowRulers] = useState(false);
   const [showGuides, setShowGuides] = useState(() => {
     const saved = localStorage.getItem('editor-guides-enabled');
     return saved !== null ? saved === 'true' : true;
@@ -250,6 +247,7 @@ export const Editor = () => {
       'carousel', 'cards', 'fold', 'unfold',
       'wipe-left', 'wipe-right', 'wipe-up', 'wipe-down',
       'circle', 'diamond', 'curtain', 'blinds',
+      'cover', 'reveal', 'gallery', 'conveyor', 'door', 'fall-over', 'vortex', 'ripple',
     ];
     
     const randomType = transitionTypes[Math.floor(Math.random() * transitionTypes.length)];
@@ -1022,7 +1020,7 @@ export const Editor = () => {
     
     try {
       if (format === 'pptx') {
-        await exportToPptx(slides, presentationTitle, canvasWidth, canvasHeight);
+        await exportToPptx(slides, presentationTitle, canvasWidth, canvasHeight, slideTransitions);
         trackAction('export_pptx', autosaveKey, presentationTitle);
       } else if (format === 'pdf') {
         await exportToPdf(slides, presentationTitle, canvasWidth, canvasHeight);

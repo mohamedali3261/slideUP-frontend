@@ -161,6 +161,214 @@
   100% { opacity: 0; transform: scale(0.5); }
 }
 
+/* Wipe Animations (PowerPoint Wipe) */
+@keyframes kiro-wipe-up {
+  from { clip-path: inset(0 0 100% 0); opacity: 0.4; }
+  to { clip-path: inset(0 0 0 0); opacity: 1; }
+}
+
+@keyframes kiro-wipe-down {
+  from { clip-path: inset(100% 0 0 0); opacity: 0.4; }
+  to { clip-path: inset(0 0 0 0); opacity: 1; }
+}
+
+@keyframes kiro-wipe-left {
+  from { clip-path: inset(0 100% 0 0); opacity: 0.4; }
+  to { clip-path: inset(0 0 0 0); opacity: 1; }
+}
+
+@keyframes kiro-wipe-right {
+  from { clip-path: inset(0 0 0 100%); opacity: 0.4; }
+  to { clip-path: inset(0 0 0 0); opacity: 1; }
+}
+
+/* Split Animations (PowerPoint Split) */
+@keyframes kiro-split-vertical {
+  from { transform: scaleY(0.4); opacity: 0; }
+  50% { opacity: 1; }
+  to { transform: scaleY(1); opacity: 1; }
+}
+
+@keyframes kiro-split-horizontal {
+  from { transform: scaleX(0.4); opacity: 0; }
+  50% { opacity: 1; }
+  to { transform: scaleX(1); opacity: 1; }
+}
+
+/* Wheel (PowerPoint Wheel) */
+@keyframes kiro-wheel {
+  0% { clip-path: polygon(50% 50%, 50% 50%, 50% 50%, 50% 50%); opacity: 0; }
+  25% { clip-path: polygon(50% 50%, 100% 50%, 100% 100%, 50% 100%); opacity: 1; }
+  50% { clip-path: polygon(50% 50%, 100% 50%, 100% 100%, 0% 100%, 0% 50%); }
+  75% { clip-path: polygon(50% 50%, 100% 50%, 100% 100%, 0% 100%, 0% 0%, 100% 0%); }
+  100% { clip-path: polygon(0 0, 100% 0, 100% 100%, 0 100%); }
+}
+
+/* Random Bars (PowerPoint Random Bars) */
+@keyframes kiro-random-bars {
+  from {
+    -webkit-mask-image: linear-gradient(90deg, transparent 0 10%, #000 10% 20%, transparent 20% 30%, #000 30% 40%, transparent 40% 50%, #000 50% 60%, transparent 60% 70%, #000 70% 80%, transparent 80% 90%, #000 90% 100%);
+    mask-image: linear-gradient(90deg, transparent 0 10%, #000 10% 20%, transparent 20% 30%, #000 30% 40%, transparent 40% 50%, #000 50% 60%, transparent 60% 70%, #000 70% 80%, transparent 80% 90%, #000 90% 100%);
+    opacity: 0.2;
+  }
+  to {
+    -webkit-mask-image: linear-gradient(90deg, #000 0 10%, #000 10% 20%, #000 20% 30%, #000 30% 40%, #000 40% 50%, #000 50% 60%, #000 60% 70%, #000 70% 80%, #000 80% 90%, #000 90% 100%);
+    mask-image: linear-gradient(90deg, #000 0 10%, #000 10% 20%, #000 20% 30%, #000 30% 40%, #000 40% 50%, #000 50% 60%, #000 60% 70%, #000 70% 80%, #000 80% 90%, #000 90% 100%);
+    opacity: 1;
+  }
+}
+
+/* Grow & Turn (PowerPoint) */
+@keyframes kiro-grow-turn {
+  0% { opacity: 0; transform: scale(0) rotate(-90deg); }
+  60% { opacity: 1; transform: scale(1.1) rotate(8deg); }
+  80% { transform: scale(0.95) rotate(-3deg); }
+  100% { transform: scale(1) rotate(0deg); }
+}
+
+/* Swivel (PowerPoint) */
+@keyframes kiro-swivel {
+  0% { opacity: 0; transform: perspective(400px) rotateY(80deg) scale(0.8); }
+  60% { opacity: 1; transform: perspective(400px) rotateY(-15deg) scale(1); }
+  100% { transform: perspective(400px) rotateY(0deg) scale(1); }
+}
+
+/* Rise Up (PowerPoint) */
+@keyframes kiro-rise-up {
+  from { opacity: 0; transform: translateY(70px) scale(0.9); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+/* Spiral In (PowerPoint) */
+@keyframes kiro-spiral-in {
+  from { opacity: 0; transform: translateY(-60px) rotate(360deg) scale(0.5); }
+  to { opacity: 1; transform: translateY(0) rotate(0deg) scale(1); }
+}
+
+/* ==================== EMPHASIS ANIMATIONS (PowerPoint Emphasis) ==================== */
+
+@keyframes kiro-spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+@keyframes kiro-teeter {
+  0%, 100% { transform: rotate(0deg); }
+  25% { transform: rotate(8deg); }
+  50% { transform: rotate(-8deg); }
+  75% { transform: rotate(4deg); }
+}
+
+@keyframes kiro-grow-shrink {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.4); }
+}
+
+@keyframes kiro-color-pulse {
+  0%, 100% { background-color: rgba(239, 68, 68, 0); box-shadow: 0 0 0 rgba(239, 68, 68, 0); }
+  50% { background-color: rgba(239, 68, 68, 0.35); box-shadow: 0 0 0 6px rgba(239, 68, 68, 0.25); }
+}
+
+@keyframes kiro-desaturate {
+  0%, 100% { filter: grayscale(0); }
+  50% { filter: grayscale(1); }
+}
+
+@keyframes kiro-darken {
+  0%, 100% { filter: brightness(1); }
+  50% { filter: brightness(0.35); }
+}
+
+@keyframes kiro-lighten {
+  0%, 100% { filter: brightness(1); }
+  50% { filter: brightness(1.6); }
+}
+
+@keyframes kiro-transparency {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.15; }
+}
+
+@keyframes kiro-underline {
+  0% { text-decoration: underline; text-decoration-color: transparent; }
+  50%, 100% { text-decoration: underline; text-decoration-color: currentColor; }
+}
+
+@keyframes kiro-bold-reveal {
+  0% { font-weight: 400; letter-spacing: 1px; }
+  50% { font-weight: 900; letter-spacing: 0; }
+  100% { font-weight: 700; letter-spacing: 0; }
+}
+
+/* ==================== EXIT ANIMATIONS (PowerPoint Exit) ==================== */
+
+@keyframes kiro-fade-out {
+  from { opacity: 1; }
+  to { opacity: 0; }
+}
+
+@keyframes kiro-fly-out-up {
+  from { opacity: 1; transform: translateY(0); }
+  to { opacity: 0; transform: translateY(-100%); }
+}
+
+@keyframes kiro-fly-out-down {
+  from { opacity: 1; transform: translateY(0); }
+  to { opacity: 0; transform: translateY(100%); }
+}
+
+@keyframes kiro-fly-out-left {
+  from { opacity: 1; transform: translateX(0); }
+  to { opacity: 0; transform: translateX(-100%); }
+}
+
+@keyframes kiro-fly-out-right {
+  from { opacity: 1; transform: translateX(0); }
+  to { opacity: 0; transform: translateX(100%); }
+}
+
+@keyframes kiro-zoom-out-exit {
+  from { opacity: 1; transform: scale(1); }
+  to { opacity: 0; transform: scale(0.2); }
+}
+
+@keyframes kiro-bounce-out {
+  0% { opacity: 1; transform: translateY(0); }
+  40% { transform: translateY(-15px); }
+  80% { transform: translateY(0); opacity: 1; }
+  100% { transform: translateY(80px); opacity: 0; }
+}
+
+@keyframes kiro-wipe-out-left {
+  from { clip-path: inset(0 0 0 0); opacity: 1; }
+  to { clip-path: inset(0 100% 0 0); opacity: 1; }
+}
+
+@keyframes kiro-wipe-out-right {
+  from { clip-path: inset(0 0 0 0); opacity: 1; }
+  to { clip-path: inset(0 0 0 100%); opacity: 1; }
+}
+
+@keyframes kiro-shrink-out {
+  from { opacity: 1; transform: scale(1); }
+  to { opacity: 0; transform: scale(0.1); }
+}
+
+@keyframes kiro-swivel-out {
+  from { opacity: 1; transform: perspective(400px) rotateY(0deg); }
+  to { opacity: 0; transform: perspective(400px) rotateY(90deg); }
+}
+
+@keyframes kiro-spin-out {
+  from { opacity: 1; transform: rotate(0deg) scale(1); }
+  to { opacity: 0; transform: rotate(360deg) scale(0.2); }
+}
+
+@keyframes kiro-rise-out {
+  from { opacity: 1; transform: translateY(0); }
+  to { opacity: 0; transform: translateY(-100%) scale(1.1); }
+}
+
 /* ==================== ATTENTION ANIMATIONS ==================== */
 
 @keyframes kiro-pulse {

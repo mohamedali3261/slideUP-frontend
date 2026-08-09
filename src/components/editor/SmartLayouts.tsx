@@ -37,6 +37,7 @@ import {
   Layers,
   ArrowRight,
   ArrowDown,
+  ArrowUp,
   Grid3X3,
   Sparkles,
   Settings2,
@@ -106,6 +107,12 @@ const ANIMATIONS = [
   { id: 'zoom', name: { en: 'Zoom', ar: 'تكبير' }, icon: <Eye className="w-3 h-3" /> },
   { id: 'bounce', name: { en: 'Bounce', ar: 'ارتداد' }, icon: <Zap className="w-3 h-3" /> },
   { id: 'rotate', name: { en: 'Rotate', ar: 'دوران' }, icon: <RotateCcw className="w-3 h-3" /> },
+  { id: 'zoom-in', name: { en: 'Zoom In', ar: 'تكبير' }, icon: <Eye className="w-3 h-3" /> },
+  { id: 'flip-x', name: { en: 'Flip', ar: 'قلب' }, icon: <RotateCcw className="w-3 h-3" /> },
+  { id: 'wipe-right', name: { en: 'Wipe', ar: 'مسح' }, icon: <Sparkles className="w-3 h-3" /> },
+  { id: 'rise-up', name: { en: 'Rise Up', ar: 'صعود' }, icon: <ArrowUp className="w-3 h-3" /> },
+  { id: 'grow-turn', name: { en: 'Grow & Turn', ar: 'نمو ودوران' }, icon: <RotateCcw className="w-3 h-3" /> },
+  { id: 'elastic-in', name: { en: 'Elastic', ar: 'مرن' }, icon: <Zap className="w-3 h-3" /> },
 ];
 
 // Alignment options

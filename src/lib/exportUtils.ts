@@ -5,6 +5,7 @@ import { SlideTemplate, SlideElement } from '@/data/templates';
 import * as LucideIcons from 'lucide-react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { createElement } from 'react';
+import JSZip from 'jszip';
 
 // Base export resolution (kept at 1920px wide; height follows the canvas aspect ratio)
 const EXPORT_WIDTH = 1920;
@@ -13,7 +14,98 @@ const getFontWeight = (weight?: string): boolean => {
   return weight === 'bold' || weight === 'semibold' || weight === 'extrabold';
 };
 
-export const exportToPptx = async (slides: SlideTemplate[], title: string, canvasWidth = 960, canvasHeight = 540) => {
+const TRANSITION_XML_BY_TYPE: Record<string, string> = {
+  fade: '<p:fade/>',
+  dissolve: '<p:dissolve/>',
+  'slide-left': '<p:push dir="l"/>',
+  'slide-right': '<p:push dir="r"/>',
+  'slide-up': '<p:push dir="t"/>',
+  'slide-down': '<p:push dir="b"/>',
+  'wipe-left': '<p:wipe dir="l"/>',
+  'wipe-right': '<p:wipe dir="r"/>',
+  'wipe-up': '<p:wipe dir="t"/>',
+  'wipe-down': '<p:wipe dir="b"/>',
+  zoom: '<p:zoom dir="in"/>',
+  'zoom-rotate': '<p:zoom dir="in"/>',
+  circle: '<p:circle/>',
+  diamond: '<p:diamond/>',
+  blinds: '<p:blinds/>',
+  'flip-x': '<p15:flip dir="l"/>',
+  'flip-y': '<p15:flip dir="t"/>',
+  'flip-3d': '<p15:flip dir="l"/>',
+  cube: '<p15:cube dir="l"/>',
+  'cube-left': '<p15:cube dir="l"/>',
+  'cube-right': '<p15:cube dir="r"/>',
+  carousel: '<p15:gallery/>',
+  pixelate: '<p15:pixelate/>',
+};
+
+const FALLBACK_TRANSITION_XML = '<p:fade/>';
+
+const buildTransitionXml = (type: string, durationSeconds?: number): string => {
+  const inner = TRANSITION_XML_BY_TYPE[type] || FALLBACK_TRANSITION_XML;
+  const durMs = Math.round((durationSeconds && durationSeconds > 0 ? durationSeconds : 0.5) * 1000);
+  const spd = durMs <= 500 ? 'fast' : durMs >= 1500 ? 'slow' : 'med';
+  return `<p:transition spd="${spd}" p14:dur="${durMs}">${inner}</p:transition>`;
+};
+
+const downloadBlob = (blob: Blob, fileName: string) => {
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = fileName;
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 100);
+};
+
+const applySlideTransitionsToPptx = async (
+  blob: Blob,
+  slides: SlideTemplate[],
+  transitions: Record<string, { type: string; duration?: number }>
+): Promise<Blob> => {
+  const zip = await JSZip.loadAsync(blob);
+  const p14Ns = 'xmlns:p14="http://schemas.microsoft.com/office/powerpoint/2010/main"';
+  const p15Ns = 'xmlns:p15="http://schemas.microsoft.com/office/powerpoint/2012/main"';
+
+  for (let i = 0; i < slides.length; i++) {
+    const transition = transitions[slides[i].id];
+    if (!transition || !transition.type || transition.type === 'none') continue;
+
+    const slidePath = `ppt/slides/slide${i + 1}.xml`;
+    const slideFile = zip.file(slidePath);
+    if (!slideFile) continue;
+
+    const xml = await slideFile.async('string');
+    const transitionXml = buildTransitionXml(transition.type, transition.duration);
+    if (!transitionXml) continue;
+
+    let nextXml = xml;
+    if (xml.indexOf('xmlns:p14=') === -1) {
+      nextXml = nextXml.replace('<p:sld ', `<p:sld ${p14Ns} `);
+    }
+    if (transitionXml.indexOf('p15:') !== -1 && xml.indexOf('xmlns:p15=') === -1) {
+      nextXml = nextXml.replace('<p:sld ', `<p:sld ${p15Ns} `);
+    }
+    nextXml = nextXml.replace('</p:sld>', `${transitionXml}</p:sld>`);
+    zip.file(slidePath, nextXml);
+  }
+
+  return zip.generateAsync({
+    type: 'blob',
+    mimeType: 'application/vnd.openxmlformats-officedocument.presentationml.presentation',
+    compression: 'DEFLATE',
+  });
+};
+
+export const exportToPptx = async (
+  slides: SlideTemplate[],
+  title: string,
+  canvasWidth = 960,
+  canvasHeight = 540,
+  slideTransitions?: Record<string, { type: string; duration?: number }>
+) => {
   const pptx = new pptxgen();
   pptx.title = title;
   pptx.author = 'SlideSpark Studio';
@@ -48,7 +140,19 @@ export const exportToPptx = async (slides: SlideTemplate[], title: string, canva
     }
   }
 
-  await pptx.writeFile({ fileName: `${title}.pptx` });
+  const hasTransitions = slideTransitions
+    && Object.keys(slideTransitions).some(
+      (id) => slideTransitions[id] && slideTransitions[id].type && slideTransitions[id].type !== 'none'
+    );
+
+  if (hasTransitions) {
+    const pptxAny = pptx as unknown as { exportPresentation: (props: Record<string, unknown>) => Promise<Blob> };
+    const blob = await pptxAny.exportPresentation({ outputType: 'blob', compression: false });
+    const finalBlob = await applySlideTransitionsToPptx(blob, slides, slideTransitions!);
+    downloadBlob(finalBlob, `${title}.pptx`);
+  } else {
+    await pptx.writeFile({ fileName: `${title}.pptx` });
+  }
 };
 
 

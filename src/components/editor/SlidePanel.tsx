@@ -334,6 +334,14 @@ const QUICK_TRANSITIONS: { value: TransitionType; label: { en: string; ar: strin
   { value: 'circle', label: { en: 'Circle', ar: 'دائرة' }, icon: '◉' },
   { value: 'blinds', label: { en: 'Blinds', ar: 'ستائر' }, icon: '▥' },
   { value: 'glitch', label: { en: 'Glitch', ar: 'خلل' }, icon: '⚡' },
+  { value: 'cover', label: { en: 'Cover', ar: 'تغطية' }, icon: '▷' },
+  { value: 'reveal', label: { en: 'Reveal', ar: 'كشف' }, icon: '◁' },
+  { value: 'gallery', label: { en: 'Gallery', ar: 'معرض' }, icon: '▦' },
+  { value: 'conveyor', label: { en: 'Conveyor', ar: 'حزام ناقل' }, icon: '≋' },
+  { value: 'door', label: { en: 'Door', ar: 'باب' }, icon: '⊨' },
+  { value: 'fall-over', label: { en: 'Fall Over', ar: 'سقوط' }, icon: '↓' },
+  { value: 'vortex', label: { en: 'Vortex', ar: 'دوامة' }, icon: '⟲' },
+  { value: 'ripple', label: { en: 'Ripple', ar: 'تموج' }, icon: '〜' },
 ];
 
 export const SlidePanel = ({
