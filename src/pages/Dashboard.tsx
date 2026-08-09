@@ -126,13 +126,6 @@ export const Dashboard = () => {
   const [presentationToRename, setPresentationToRename] = useState<SavedPresentation | null>(null);
   const [newTitle, setNewTitle] = useState('');
 
-  // Redirect to login if not authenticated
-  useEffect(() => {
-    if (!isLoading && !user) {
-      navigate('/login', { state: { from: '/dashboard' } });
-    }
-  }, [user, isLoading, navigate]);
-
   // Load data on mount for authenticated user
   useEffect(() => {
     if (user) {

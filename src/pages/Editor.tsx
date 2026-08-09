@@ -25,6 +25,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { savePresentation, getPresentationById } from '@/lib/storage';
 import { toast } from 'sonner';
 import { SavedPresentation } from './Dashboard';
+import { PanelLeft, PanelRight, ChevronLeft, ChevronRight, Type, Square, Circle, Image, Plus } from 'lucide-react';
 
 const createDefaultSlide = (id: string): SlideTemplate => ({
   id,
@@ -1543,21 +1544,138 @@ export const Editor = () => {
       </div>
 
       {/* Speaker Notes - Bottom Bar */}
-      <div className="h-12 border-t border-border bg-card flex items-center justify-between px-4">
-        <div className="flex items-center gap-2">
-          <SpeakerNotes
-            slideId={activeSlide?.id || ''}
-            slideIndex={activeSlideIndex}
-            totalSlides={slides.length}
-            notes={speakerNotes}
-            onNotesChange={handleNotesChange}
-            onNavigate={handleNotesNavigate}
-          />
+      {isMobile ? (
+        <div className="h-auto border-t border-border bg-card flex flex-col">
+          {/* Unified Bar: Notes + Panel Toggles + Navigation + Quick Add */}
+          <div className="flex items-center justify-between px-2 py-2 bg-muted/30">
+            <div className="flex items-center gap-1">
+              <SpeakerNotes
+                slideId={activeSlide?.id || ''}
+                slideIndex={activeSlideIndex}
+                totalSlides={slides.length}
+                notes={speakerNotes}
+                onNotesChange={handleNotesChange}
+                onNavigate={handleNotesNavigate}
+              />
+              <div className="w-px h-5 bg-border/50 mx-1" />
+              <button
+                onClick={() => setShowPropertiesPanel(!showPropertiesPanel)}
+                className={`flex flex-col items-center gap-0.5 p-1.5 rounded-lg transition-all min-w-[40px] ${
+                  showPropertiesPanel
+                    ? 'bg-primary text-primary-foreground shadow-md'
+                    : 'hover:bg-muted/80'
+                }`}
+                title={language === 'ar' ? 'الخصائص' : 'Properties'}
+              >
+                <PanelRight className="w-3.5 h-3.5" />
+                <span className="text-[8px]">{language === 'ar' ? 'خصائص' : 'Props'}</span>
+              </button>
+              <button
+                onClick={() => setShowSlidesPanel(!showSlidesPanel)}
+                className={`flex flex-col items-center gap-0.5 p-1.5 rounded-lg transition-all min-w-[40px] ${
+                  showSlidesPanel
+                    ? 'bg-primary text-primary-foreground shadow-md'
+                    : 'hover:bg-muted/80'
+                }`}
+                title={language === 'ar' ? 'الشرائح' : 'Slides'}
+              >
+                <PanelLeft className="w-3.5 h-3.5" />
+                <span className="text-[8px]">{language === 'ar' ? 'شرائح' : 'Slides'}</span>
+              </button>
+            </div>
+            <div className="flex items-center gap-1">
+              <button
+                onClick={() => handleSlideSelect(Math.max(0, activeSlideIndex - 1))}
+                disabled={activeSlideIndex === 0}
+                className="p-1.5 rounded-lg hover:bg-muted/80 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+              >
+                <ChevronLeft className="w-4 h-4" />
+              </button>
+              <div className="text-xs font-medium px-1">
+                {activeSlideIndex + 1}/{slides.length}
+              </div>
+              <button
+                onClick={() => handleSlideSelect(Math.min(slides.length - 1, activeSlideIndex + 1))}
+                disabled={activeSlideIndex === slides.length - 1}
+                className="p-1.5 rounded-lg hover:bg-muted/80 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+              >
+                <ChevronRight className="w-4 h-4" />
+              </button>
+            </div>
+            <div className="flex items-center gap-1">
+              <button
+                onClick={() => handleAddElement({
+                  type: 'text',
+                  x: 100,
+                  y: 100,
+                  width: 300,
+                  height: 80,
+                  content: language === 'ar' ? 'نص جديد' : 'New Text',
+                  fontSize: 20,
+                  fontWeight: 'normal',
+                  textAlign: 'left',
+                  color: activeSlide.textColor,
+                })}
+                className="flex flex-col items-center gap-0.5 p-1.5 rounded-lg hover:bg-background transition-colors min-w-[40px]"
+                title={language === 'ar' ? 'إضافة نص' : 'Add Text'}
+              >
+                <Type className="w-3.5 h-3.5" />
+                <span className="text-[8px]">{language === 'ar' ? 'نص' : 'Text'}</span>
+              </button>
+              <button
+                onClick={() => handleAddElement({
+                  type: 'shape',
+                  x: 150,
+                  y: 150,
+                  width: 100,
+                  height: 100,
+                  shapeType: 'rectangle',
+                  backgroundColor: '#3b82f6',
+                  borderRadius: 8,
+                })}
+                className="flex flex-col items-center gap-0.5 p-1.5 rounded-lg hover:bg-background transition-colors min-w-[40px]"
+                title={language === 'ar' ? 'إضافة مستطيل' : 'Add Rectangle'}
+              >
+                <Square className="w-3.5 h-3.5" />
+                <span className="text-[8px]">{language === 'ar' ? 'شكل' : 'Shape'}</span>
+              </button>
+              <button
+                onClick={() => handleAddElement({
+                  type: 'shape',
+                  x: 150,
+                  y: 150,
+                  width: 100,
+                  height: 100,
+                  shapeType: 'circle',
+                  backgroundColor: '#3b82f6',
+                  borderRadius: 50,
+                })}
+                className="flex flex-col items-center gap-0.5 p-1.5 rounded-lg hover:bg-background transition-colors min-w-[40px]"
+                title={language === 'ar' ? 'إضافة دائرة' : 'Add Circle'}
+              >
+                <Circle className="w-3.5 h-3.5" />
+                <span className="text-[8px]">{language === 'ar' ? 'دائرة' : 'Circle'}</span>
+              </button>
+            </div>
+          </div>
         </div>
-        <div className="text-sm text-muted-foreground">
-          {activeSlideIndex + 1} / {slides.length}
+      ) : (
+        <div className="h-12 border-t border-border bg-card flex items-center justify-between px-4">
+          <div className="flex items-center gap-2">
+            <SpeakerNotes
+              slideId={activeSlide?.id || ''}
+              slideIndex={activeSlideIndex}
+              totalSlides={slides.length}
+              notes={speakerNotes}
+              onNotesChange={handleNotesChange}
+              onNavigate={handleNotesNavigate}
+            />
+          </div>
+          <div className="text-sm text-muted-foreground">
+            {activeSlideIndex + 1} / {slides.length}
+          </div>
         </div>
-      </div>
+      )}
 
       {/* Security Question Prompt */}
       <SecurityQuestionPrompt />

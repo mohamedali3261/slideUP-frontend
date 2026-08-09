@@ -865,8 +865,8 @@ export const SlideCanvas = ({
           
         </div>
         
-        {/* Right Side - Panel Toggle Buttons */}
-        <div className="flex items-center gap-1 bg-muted/20 rounded-lg p-0.5 flex-shrink-0">
+        {/* Right Side - Panel Toggle Buttons - Hidden on mobile */}
+        <div className="hidden sm:flex items-center gap-1 bg-muted/20 rounded-lg p-0.5 flex-shrink-0">
           {/* Toggle Slides Panel */}
           {onToggleSlidesPanel && (
             <Tooltip delayDuration={300}>
@@ -876,7 +876,7 @@ export const SlideCanvas = ({
                   className={`p-1.5 rounded hover:bg-background transition-colors ${
                     showSlidesPanel ? 'bg-primary/10 text-primary' : 'text-muted-foreground'
                   }`}
-                  title={showSlidesPanel 
+                  title={showSlidesPanel
                     ? (language === 'ar' ? 'إخفاء الشرائح' : 'Hide Slides')
                     : (language === 'ar' ? 'إظهار الشرائح' : 'Show Slides')
                   }
@@ -887,7 +887,7 @@ export const SlideCanvas = ({
               <TooltipContent className="bg-gradient-to-r from-primary to-purple-600 text-white border-none shadow-lg px-3 py-1.5 text-xs font-medium rounded-lg">
                 <div className="flex items-center gap-1.5">
                   <PanelLeft className="w-3 h-3" />
-                  {showSlidesPanel 
+                  {showSlidesPanel
                     ? (language === 'ar' ? 'إخفاء الشرائح' : 'Hide Slides')
                     : (language === 'ar' ? 'إظهار الشرائح' : 'Show Slides')
                   }
@@ -895,7 +895,7 @@ export const SlideCanvas = ({
               </TooltipContent>
             </Tooltip>
           )}
-          
+
           {/* Toggle Properties Panel */}
           {onTogglePropertiesPanel && (
             <Tooltip delayDuration={300}>

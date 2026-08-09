@@ -1,5 +1,5 @@
 import { createContext, useContext, useState, useEffect, ReactNode } from 'react';
-import { loginUser, logoutUser, getCurrentUser, getUserFull, updateUserSecurityQuestion } from '@/lib/storage';
+import { loginUser, logoutUser, getCurrentUser, getUserFull } from '@/lib/storage';
 
 interface User {
   id: number;
@@ -24,6 +24,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
+    // Auto-login with default user if no user exists
     const currentUser = getCurrentUser();
     if (currentUser) {
       const fullUser = getUserFull(currentUser.id);
@@ -34,6 +35,20 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         security_question: fullUser?.securityQuestion,
       });
       setToken(btoa(JSON.stringify(currentUser)));
+    } else {
+      // Create default user automatically
+      const defaultUsername = 'guest';
+      const result = loginUser(defaultUsername, '');
+      if (!('error' in result)) {
+        const fullUser = getUserFull(result.user.id);
+        setUser({
+          id: result.user.id,
+          username: result.user.username,
+          role: result.user.role,
+          security_question: fullUser?.securityQuestion,
+        });
+        setToken(result.token);
+      }
     }
     setIsLoading(false);
   }, []);

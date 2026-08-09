@@ -581,18 +581,18 @@ export const SmartLayouts = ({
           {language === 'ar' ? 'تخطيط ذكي' : 'Smart Layout'}
         </Button>
       </DialogTrigger>
-      <DialogContent className="max-w-6xl max-h-[85vh] p-0 overflow-hidden flex flex-col">
-        <DialogHeader className="px-6 py-4 border-b shrink-0">
+      <DialogContent className="max-w-6xl max-h-[85vh] p-0 overflow-hidden flex flex-col sm:max-w-4xl">
+        <DialogHeader className="px-4 py-3 border-b shrink-0">
           <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <div className="p-2 rounded-xl bg-gradient-to-br from-primary/20 to-purple-500/20">
-                <Wand2 className="w-5 h-5 text-primary" />
+            <div className="flex items-center gap-2">
+              <div className="p-1.5 rounded-lg bg-gradient-to-br from-primary/20 to-purple-500/20">
+                <Wand2 className="w-4 h-4 text-primary" />
               </div>
               <div>
-                <DialogTitle className="text-lg">
+                <DialogTitle className="text-base sm:text-lg">
                   {language === 'ar' ? 'التخطيط الذكي' : 'Smart Layouts'}
                 </DialogTitle>
-                <p className="text-sm text-muted-foreground mt-0.5">
+                <p className="text-xs sm:text-sm text-muted-foreground mt-0.5">
                   {language === 'ar' ? `ترتيب ${targetCount} عناصر بذكاء` : `Intelligently arrange ${targetCount} elements`}
                 </p>
               </div>
@@ -610,17 +610,17 @@ export const SmartLayouts = ({
           </div>
         </DialogHeader>
 
-        <ScrollArea className="flex-1 px-6">
-          <div className="grid grid-cols-5 gap-6 py-6">
-            {/* Layout Selection - 2 columns */}
-            <div className="col-span-2 space-y-4">
+        <ScrollArea className="flex-1 px-4 sm:px-6">
+          <div className="grid grid-cols-1 sm:grid-cols-5 gap-4 sm:gap-6 py-4 sm:py-6">
+            {/* Layout Selection - 2 columns on desktop, 1 on mobile */}
+            <div className="col-span-1 sm:col-span-2 space-y-3 sm:space-y-4">
               {/* Category Tabs */}
               <div className="flex gap-1 p-1 bg-muted/50 rounded-xl">
                 {LAYOUT_CATEGORIES.map((cat) => (
                   <button
                     key={cat.id}
                     className={cn(
-                      'flex-1 flex items-center justify-center gap-1.5 py-2 px-3 rounded-lg text-xs font-medium transition-all',
+                      'flex-1 flex items-center justify-center gap-1 sm:gap-1.5 py-1.5 sm:py-2 px-2 sm:px-3 rounded-lg text-[10px] sm:text-xs font-medium transition-all',
                       selectedCategory === cat.id
                         ? 'bg-background shadow-sm text-primary'
                         : 'text-muted-foreground hover:text-foreground'
@@ -628,19 +628,19 @@ export const SmartLayouts = ({
                     onClick={() => setSelectedCategory(cat.id as LayoutCategory)}
                   >
                     {cat.icon}
-                    {language === 'ar' ? cat.name.ar : cat.name.en}
+                    <span className="hidden sm:inline">{language === 'ar' ? cat.name.ar : cat.name.en}</span>
                   </button>
                 ))}
               </div>
 
               {/* Layout Grid */}
               <div className="space-y-2">
-                <div className="grid grid-cols-2 gap-2 max-h-[400px] overflow-y-auto pr-2 scrollbar-thin scrollbar-thumb-primary/40 hover:scrollbar-thumb-primary/60 scrollbar-track-muted/20">
+                <div className="grid grid-cols-2 gap-2 max-h-[300px] sm:max-h-[400px] overflow-y-auto pr-2 scrollbar-thin scrollbar-thumb-primary/40 hover:scrollbar-thumb-primary/60 scrollbar-track-muted/20">
                   {filteredLayouts.map((layout) => (
                     <button
                       key={layout.type}
                       className={cn(
-                        'group relative p-3 rounded-xl border-2 text-left transition-all duration-200',
+                        'group relative p-2 sm:p-3 rounded-xl border-2 text-left transition-all duration-200',
                         selectedLayout === layout.type
                           ? 'border-primary bg-primary/5 shadow-md'
                           : 'border-border/50 hover:border-primary/30 hover:bg-muted/30'
@@ -653,18 +653,18 @@ export const SmartLayouts = ({
                         selectedLayout === layout.type && 'opacity-100'
                       )} />
                       <div className="relative">
-                        <div className="flex items-center gap-2 mb-1.5">
+                        <div className="flex items-center gap-1.5 sm:gap-2 mb-1 sm:mb-1.5">
                           <div className={cn(
-                            'p-1.5 rounded-lg transition-colors',
+                            'p-1 sm:p-1.5 rounded-lg transition-colors',
                             selectedLayout === layout.type ? 'bg-primary/20 text-primary' : 'bg-muted text-muted-foreground group-hover:text-foreground'
                           )}>
                             {layout.icon}
                           </div>
-                          <span className="font-medium text-sm">
+                          <span className="font-medium text-xs sm:text-sm">
                             {language === 'ar' ? layout.name.ar : layout.name.en}
                           </span>
                         </div>
-                        <p className="text-[11px] text-muted-foreground leading-relaxed">
+                        <p className="text-[10px] sm:text-[11px] text-muted-foreground leading-relaxed hidden sm:block">
                           {language === 'ar' ? layout.description.ar : layout.description.en}
                         </p>
                       </div>
@@ -675,18 +675,18 @@ export const SmartLayouts = ({
             </div>
 
             {/* Settings - 1 column */}
-            <div className="col-span-1 space-y-3">
-              <div className="p-3 rounded-xl bg-muted/30 border border-border/50 space-y-3">
-                <div className="flex items-center gap-2 text-sm font-semibold">
-                  <Settings2 className="w-4 h-4 text-primary" />
+            <div className="col-span-1 space-y-2 sm:space-y-3">
+              <div className="p-2 sm:p-3 rounded-xl bg-muted/30 border border-border/50 space-y-2 sm:space-y-3">
+                <div className="flex items-center gap-2 text-xs sm:text-sm font-semibold">
+                  <Settings2 className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-primary" />
                   {language === 'ar' ? 'الإعدادات' : 'Settings'}
                 </div>
 
                 {/* Spacing */}
-                <div className="space-y-2">
-                  <div className="flex justify-between text-xs">
+                <div className="space-y-1.5 sm:space-y-2">
+                  <div className="flex justify-between text-[10px] sm:text-xs">
                     <span className="text-muted-foreground">{language === 'ar' ? 'المسافة' : 'Spacing'}</span>
-                    <Badge variant="secondary" className="h-5 px-2 text-[10px]">{spacing}px</Badge>
+                    <Badge variant="secondary" className="h-4 sm:h-5 px-1.5 sm:px-2 text-[9px] sm:text-[10px]">{spacing}px</Badge>
                   </div>
                   <Slider
                     value={[spacing]}
@@ -699,26 +699,26 @@ export const SmartLayouts = ({
                 </div>
 
                 {/* Padding */}
-                <div className="space-y-2">
-                  <div className="flex justify-between text-xs">
+                <div className="space-y-1.5 sm:space-y-2">
+                  <div className="flex justify-between text-[10px] sm:text-xs">
                     <span className="text-muted-foreground">{language === 'ar' ? 'الهامش' : 'Padding'}</span>
-                    <Badge variant="secondary" className="h-5 px-2 text-[10px]">{padding}px</Badge>
+                    <Badge variant="secondary" className="h-4 sm:h-5 px-1.5 sm:px-2 text-[9px] sm:text-[10px]">{padding}px</Badge>
                   </div>
                   <Slider
                     value={[padding]}
                     onValueChange={([value]) => setPadding(value)}
-                  min={0}
-                  max={100}
-                  step={10}
-                  className="accent-primary"
-                />
-              </div>
+                    min={0}
+                    max={100}
+                    step={10}
+                    className="accent-primary"
+                  />
+                </div>
 
                 {(selectedLayout === 'grid' || selectedLayout === 'masonry') && (
-                  <div className="space-y-2">
-                    <div className="flex justify-between text-xs">
+                  <div className="space-y-1.5 sm:space-y-2">
+                    <div className="flex justify-between text-[10px] sm:text-xs">
                       <span className="text-muted-foreground">{language === 'ar' ? 'الأعمدة' : 'Columns'}</span>
-                      <Badge variant="secondary" className="h-5 px-2 text-[10px]">
+                      <Badge variant="secondary" className="h-4 sm:h-5 px-1.5 sm:px-2 text-[9px] sm:text-[10px]">
                         {gridColumns === 0 ? (language === 'ar' ? 'تلقائي' : 'Auto') : gridColumns}
                       </Badge>
                     </div>
@@ -735,15 +735,15 @@ export const SmartLayouts = ({
 
                 {/* Alignment (for stacks) */}
                 {(selectedLayout === 'stack-h' || selectedLayout === 'stack-v') && (
-                  <div className="space-y-2">
-                    <span className="text-xs text-muted-foreground">{language === 'ar' ? 'المحاذاة' : 'Alignment'}</span>
+                  <div className="space-y-1.5 sm:space-y-2">
+                    <span className="text-[10px] sm:text-xs text-muted-foreground">{language === 'ar' ? 'المحاذاة' : 'Alignment'}</span>
                     <div className="flex gap-1">
                       {ALIGNMENTS.map((align) => (
                         <Button
                           key={align.id}
                           variant={alignment === align.id ? 'default' : 'outline'}
                           size="sm"
-                          className="flex-1 h-7 rounded-lg p-0"
+                          className="flex-1 h-6 sm:h-7 rounded-lg p-0"
                           onClick={() => setAlignment(align.id as typeof alignment)}
                         >
                           {align.icon}
@@ -754,25 +754,25 @@ export const SmartLayouts = ({
                 )}
 
                 {/* Switches */}
-                <div className="space-y-2 pt-2 border-t border-border/50">
+                <div className="space-y-1.5 sm:space-y-2 pt-1.5 sm:pt-2 border-t border-border/50">
                   <div className="flex items-center justify-between">
-                    <span className="text-[11px]">{language === 'ar' ? 'تغيير الحجم' : 'Resize'}</span>
+                    <span className="text-[10px] sm:text-[11px]">{language === 'ar' ? 'تغيير الحجم' : 'Resize'}</span>
                     <Switch checked={resizeToFit} onCheckedChange={setResizeToFit} />
                   </div>
                   <div className="flex items-center justify-between">
-                    <span className="text-[11px]">{language === 'ar' ? 'حفظ الترتيب' : 'Order'}</span>
+                    <span className="text-[10px] sm:text-[11px]">{language === 'ar' ? 'حفظ الترتيب' : 'Order'}</span>
                     <Switch checked={maintainOrder} onCheckedChange={setMaintainOrder} />
                   </div>
                 </div>
               </div>
 
               {/* Animation - Compact */}
-              <div className="p-2.5 rounded-xl bg-muted/30 border border-border/50 space-y-2">
-                <div className="flex items-center gap-2 text-xs font-semibold">
-                  <Sparkles className="w-3.5 h-3.5 text-primary" />
+              <div className="p-2 sm:p-2.5 rounded-xl bg-muted/30 border border-border/50 space-y-1.5 sm:space-y-2">
+                <div className="flex items-center gap-2 text-[10px] sm:text-xs font-semibold">
+                  <Sparkles className="w-3 h-3 sm:w-3.5 sm:h-3.5 text-primary" />
                   {language === 'ar' ? 'حركة' : 'Anim'}
                 </div>
-                
+
                 <div className="grid grid-cols-2 gap-1">
                   {ANIMATIONS.slice(0, 4).map((anim) => (
                     <button
@@ -793,7 +793,7 @@ export const SmartLayouts = ({
 
                 {animation !== 'none' && (
                   <div className="space-y-1">
-                    <div className="flex justify-between text-[10px]">
+                    <div className="flex justify-between text-[9px] sm:text-[10px]">
                       <span className="text-muted-foreground">{language === 'ar' ? 'تأخير' : 'Delay'}</span>
                       <span className="text-primary font-bold">{animationDelay}s</span>
                     </div>

@@ -244,29 +244,30 @@ export const EditorToolbar = ({
 
           <div className="w-px h-5 bg-border/50 mx-1 flex-shrink-0" />
 
-          {/* Edit Menu */}
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button variant="ghost" size="sm" className="h-8 text-[10px] px-2 gap-1 rounded-lg hover:bg-background flex-shrink-0">
-                <LayoutGrid className="w-4 h-4" />
-                {language === 'ar' ? 'تعديل' : 'Edit'}
-                <ChevronDown className="w-3 h-3 opacity-50" />
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="start" className="w-52 rounded-xl">
-              {onPasteStyle && (
-                <div className="px-2 py-1">
-                  <CopyPasteStyles
-                    selectedElement={elements.find(el => el.id === selectedElementId) || null}
-                    onPasteStyle={onPasteStyle}
-                  />
-                </div>
-              )}
-              {onApplyLayout && (
-                <div className="px-2 py-1">
-                  <SmartLayouts
-                    elements={elements}
-                    selectedElementIds={selectedElementIds}
+          {/* Edit Menu - Hidden on mobile since elements are in bottom bar */}
+          <div className="hidden sm:block">
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="ghost" size="sm" className="h-8 text-[10px] px-2 gap-1 rounded-lg hover:bg-background flex-shrink-0">
+                  <LayoutGrid className="w-4 h-4" />
+                  {language === 'ar' ? 'تعديل' : 'Edit'}
+                  <ChevronDown className="w-3 h-3 opacity-50" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="start" className="w-52 rounded-xl">
+                {onPasteStyle && (
+                  <div className="px-2 py-1">
+                    <CopyPasteStyles
+                      selectedElement={elements.find(el => el.id === selectedElementId) || null}
+                      onPasteStyle={onPasteStyle}
+                    />
+                  </div>
+                )}
+                {onApplyLayout && (
+                  <div className="px-2 py-1">
+                    <SmartLayouts
+                      elements={elements}
+                      selectedElementIds={selectedElementIds}
                     canvasWidth={canvasWidth}
                     canvasHeight={canvasHeight}
                     onApplyLayout={onApplyLayout}
@@ -290,6 +291,7 @@ export const EditorToolbar = ({
               )}
             </DropdownMenuContent>
           </DropdownMenu>
+          </div>
 
           <div className="w-px h-5 bg-border/50 mx-1 flex-shrink-0" />
 

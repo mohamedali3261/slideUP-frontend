@@ -448,7 +448,7 @@ export const SlidePanel = ({
       </div>
 
       {/* Slides List */}
-      <div className="flex-1 overflow-y-auto p-3 space-y-3 scrollbar-thin scrollbar-thumb-primary/40 hover:scrollbar-thumb-primary/60 scrollbar-track-muted/20" dir="ltr">
+      <div className="flex-1 overflow-y-auto p-2 space-y-2 scrollbar-thin scrollbar-thumb-primary/40 hover:scrollbar-thumb-primary/60 scrollbar-track-muted/20" dir="ltr">
         {slides.map((slide, index) => {
           const transition = getSlideTransition(slide.id);
           const hasTransition = transition.type !== 'none';
@@ -488,11 +488,11 @@ export const SlidePanel = ({
 
                     {/* Transition Indicator */}
                     {hasTransition && (
-                      <div className="absolute top-1.5 right-1.5 z-10">
+                      <div className="absolute top-1 right-1 z-10">
                         <Tooltip>
                           <TooltipTrigger>
-                            <div className="w-4 h-4 rounded-full bg-gradient-to-br from-primary to-purple-600 flex items-center justify-center shadow-lg">
-                              <Sparkles className="w-2.5 h-2.5 text-primary-foreground" />
+                            <div className="w-3 h-3 rounded-full bg-gradient-to-br from-primary to-purple-600 flex items-center justify-center shadow-lg">
+                              <Sparkles className="w-2 h-2 text-primary-foreground" />
                             </div>
                           </TooltipTrigger>
                           <TooltipContent side="right" className="bg-gradient-to-r from-primary to-purple-600 text-white border-none shadow-lg px-3 py-1.5 text-xs font-medium rounded-lg">

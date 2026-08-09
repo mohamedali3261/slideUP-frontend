@@ -48,15 +48,12 @@ const App = () => {
             >
               <Routes>
                 <Route path="/" element={<Index />} />
-                <Route path="/templates" element={<Templates />} />
                 <Route path="/editor" element={<Editor />} />
                 <Route path="/dashboard" element={<Dashboard />} />
-                <Route path="/login" element={<Login />} />
-                <Route path="/forgot-password" element={<ForgotPassword />} />
-                <Route path="/set-security-question" element={<SetSecurityQuestion />} />
+                <Route path="/templates" element={<Templates />} />
                 <Route path="/admin" element={<AdminDashboard />} />
                 {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
-                <Route path="*" element={<NotFound />} />
+                <Route path="*" element={<Index />} />
               </Routes>
             </BrowserRouter>
           </TooltipProvider>
