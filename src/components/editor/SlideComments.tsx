@@ -86,7 +86,7 @@ export const SlideComments = ({
         <div
           key={comment.id}
           className={cn(
-            'absolute w-6 h-6 rounded-full flex items-center justify-center cursor-pointer transition-transform hover:scale-110',
+            'absolute w-7 h-7 rounded-full flex items-center justify-center cursor-pointer transition-transform hover:scale-110',
             comment.resolved ? 'bg-green-500' : 'bg-primary'
           )}
           style={{
@@ -120,7 +120,7 @@ export const SlideComments = ({
                     <button
                       onClick={() => onResolveComment(comment.id)}
                       className={cn(
-                        'text-xs px-2 py-0.5 rounded',
+                        'text-xs px-2.5 py-1 rounded',
                         comment.resolved ? 'bg-green-100 text-green-700' : 'bg-muted hover:bg-muted/80'
                       )}
                     >
@@ -128,15 +128,15 @@ export const SlideComments = ({
                     </button>
                     <button
                       onClick={() => { onDeleteComment(comment.id); setActiveCommentId(null); }}
-                      className="p-1 hover:bg-destructive/10 rounded text-destructive"
+                      className="p-1.5 hover:bg-destructive/10 rounded text-destructive"
                     >
-                      <Trash2 size={12} />
+                      <Trash2 size={14} />
                     </button>
                     <button
                       onClick={() => setActiveCommentId(null)}
-                      className="p-1 hover:bg-muted rounded"
+                      className="p-1.5 hover:bg-muted rounded"
                     >
-                      <X size={12} />
+                      <X size={14} />
                     </button>
                   </div>
                 </div>

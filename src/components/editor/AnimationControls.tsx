@@ -788,4 +788,44 @@ export const getTransitionInStyle = (transition: SlideTransition): React.CSSProp
   };
 };
 
+// Get transition in START style for a slide (the "from" state of the entrance animation)
+export const getTransitionInStartStyle = (transition: SlideTransition): React.CSSProperties => {
+  if (transition.type === 'none') return {};
+
+  const styles: Record<TransitionType, React.CSSProperties> = {
+    'none': {},
+    'fade': { opacity: 0 },
+    'dissolve': { opacity: 0, filter: 'blur(10px)' },
+    'slide-left': { transform: 'translateX(100%)' },
+    'slide-right': { transform: 'translateX(-100%)' },
+    'slide-up': { transform: 'translateY(100%)' },
+    'slide-down': { transform: 'translateY(-100%)' },
+    'zoom': { transform: 'scale(0.5)', opacity: 0 },
+    'zoom-rotate': { transform: 'scale(0.5) rotate(-180deg)', opacity: 0 },
+    'flip-x': { transform: 'rotateY(-90deg)', opacity: 0 },
+    'flip-y': { transform: 'rotateX(-90deg)', opacity: 0 },
+    'flip-3d': { transform: 'rotateY(-90deg) rotateX(-45deg)', opacity: 0 },
+    'cube': { transform: 'translateZ(-200px) rotateY(90deg)' },
+    'cube-left': { transform: 'translateZ(-200px) rotateY(-90deg)' },
+    'cube-right': { transform: 'translateZ(-200px) rotateY(90deg)' },
+    'carousel': { transform: 'translateX(50%) scale(0.8)', opacity: 0 },
+    'cards': { transform: 'translateX(100%) rotate(10deg)', opacity: 0 },
+    'fold': { transform: 'rotateX(90deg)', transformOrigin: 'top center' },
+    'unfold': { transform: 'rotateX(-90deg)', transformOrigin: 'bottom center' },
+    'glitch': { filter: 'hue-rotate(-90deg) saturate(200%)', transform: 'skewX(-10deg)' },
+    'morph': { borderRadius: '50%', transform: 'scale(0.5)', opacity: 0 },
+    'wipe-left': { clipPath: 'inset(0 0 0 100%)' },
+    'wipe-right': { clipPath: 'inset(0 100% 0 0)' },
+    'wipe-up': { clipPath: 'inset(0 0 100% 0)' },
+    'wipe-down': { clipPath: 'inset(100% 0 0 0)' },
+    'circle': { clipPath: 'circle(0% at 50% 50%)' },
+    'diamond': { clipPath: 'polygon(50% 50%, 50% 50%, 50% 50%, 50% 50%)' },
+    'curtain': { transform: 'scaleX(0)' },
+    'blinds': { transform: 'scaleY(0)' },
+    'pixelate': { filter: 'blur(20px)', opacity: 0 },
+  };
+
+  return styles[transition.type] || {};
+};
+
 export default AnimationControls;

@@ -29,7 +29,7 @@ import {
   Animation,
   getAnimationStyle,
   getTransitionOutStyle,
-  getTransitionInStyle,
+  getTransitionInStartStyle,
 } from './AnimationControls';
 import {
   Popover,
@@ -45,6 +45,8 @@ interface PresentationModeProps {
   onClose: () => void;
   speakerNotes?: SlideNotes;
   slideTransitions?: Record<string, SlideTransition>;
+  canvasWidth?: number;
+  canvasHeight?: number;
 }
 
 const DEFAULT_TRANSITION: SlideTransition = {
@@ -59,18 +61,23 @@ export const PresentationMode = ({
   onClose, 
   speakerNotes = {},
   slideTransitions = {},
+  canvasWidth = 960,
+  canvasHeight = 540,
 }: PresentationModeProps) => {
   const { language } = useLanguage();
   const [currentIndex, setCurrentIndex] = useState(initialSlideIndex);
   const [previousIndex, setPreviousIndex] = useState<number | null>(null);
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [isTransitioning, setIsTransitioning] = useState(false);
+  const [transitionPhase, setTransitionPhase] = useState<'idle' | 'out' | 'in'>('idle');
+  const [outApplied, setOutApplied] = useState(false);
+  const [inApplied, setInApplied] = useState(false);
+  const [hasStarted, setHasStarted] = useState(false);
   const [showNotes, setShowNotes] = useState(false);
   const [isDrawingMode, setIsDrawingMode] = useState(false);
   const [showThumbnails, setShowThumbnails] = useState(false);
   const [isAutoPlaying, setIsAutoPlaying] = useState(false);
   const [autoPlayInterval, setAutoPlayInterval] = useState(5);
-  const [transitionDirection, setTransitionDirection] = useState<'next' | 'prev'>('next');
   const [isBlackout, setIsBlackout] = useState(false);
   const [showLaser, setShowLaser] = useState(false);
   const [laserPosition, setLaserPosition] = useState({ x: 0, y: 0 });
@@ -84,6 +91,7 @@ export const PresentationMode = ({
   const autoPlayRef = useRef<NodeJS.Timeout | null>(null);
   const elementPlayRef = useRef<NodeJS.Timeout | null>(null);
   const slideContainerRef = useRef<HTMLDivElement>(null);
+  const targetIndexRef = useRef(0);
 
   const currentSlide = slides[currentIndex];
   const currentNotes = speakerNotes[currentSlide?.id]?.content || '';
@@ -95,8 +103,8 @@ export const PresentationMode = ({
       if (slideContainerRef.current) {
         const containerWidth = window.innerWidth;
         const containerHeight = window.innerHeight - 80; // Reserve space for toolbar
-        const slideWidth = 960;
-        const slideHeight = 540;
+        const slideWidth = canvasWidth;
+        const slideHeight = canvasHeight;
         
         const scaleX = containerWidth / slideWidth;
         const scaleY = containerHeight / slideHeight;
@@ -109,7 +117,7 @@ export const PresentationMode = ({
     updateScale();
     window.addEventListener('resize', updateScale);
     return () => window.removeEventListener('resize', updateScale);
-  }, []);
+  }, [canvasWidth, canvasHeight]);
 
   // Get all elements sorted by zIndex/position
   const getAllElements = useCallback((slide: SlideTemplate) => {
@@ -253,65 +261,118 @@ export const PresentationMode = ({
     };
   }, [isAutoPlaying, currentIndex, autoPlayInterval, slides.length]);
 
+  const getTransitionDuration = useCallback((index: number) => {
+    const t = slideTransitions[slides[index]?.id] || DEFAULT_TRANSITION;
+    return t.duration || 0.5;
+  }, [slideTransitions, slides]);
+
+  const getTransitionEasing = useCallback((index: number) => {
+    const t = slideTransitions[slides[index]?.id] || DEFAULT_TRANSITION;
+    return t.easing || 'ease-in-out';
+  }, [slideTransitions, slides]);
+
+  // Compose the slide transform (out/in state) on top of the fit-to-screen scale
+  const withSlideTransform = useCallback((style: React.CSSProperties): React.CSSProperties => {
+    const transform = style.transform;
+    return {
+      ...style,
+      transform: transform ? `${transform} scale(${slideScale})` : `scale(${slideScale})`,
+    };
+  }, [slideScale]);
+
+  const startTransition = useCallback((target: number) => {
+    if (target === currentIndex || isTransitioning) return;
+    setHasStarted(true);
+    setPreviousIndex(currentIndex);
+    targetIndexRef.current = target;
+    setOutApplied(false);
+    setInApplied(false);
+    setIsTransitioning(true);
+    setTransitionPhase('out');
+  }, [currentIndex, isTransitioning]);
+
   const goToNext = useCallback(() => {
     // First show all animated elements one by one, then go to next slide
     if (currentElementIndex < animatedElements.length) {
       showNextElement();
-    } else if (currentIndex < slides.length - 1 && !isTransitioning) {
-      setTransitionDirection('next');
-      setPreviousIndex(currentIndex);
-      setIsTransitioning(true);
-      
-      setTimeout(() => {
-        setCurrentIndex(currentIndex + 1);
-        setTimeout(() => {
-          setIsTransitioning(false);
-          setPreviousIndex(null);
-        }, currentTransition.duration * 1000);
-      }, 50);
+    } else if (currentIndex < slides.length - 1) {
+      startTransition(currentIndex + 1);
     }
-  }, [currentIndex, slides.length, isTransitioning, currentTransition.duration, currentElementIndex, animatedElements.length, showNextElement]);
+  }, [currentIndex, slides.length, currentElementIndex, animatedElements.length, showNextElement, startTransition]);
 
   const goToPrevious = useCallback(() => {
     // First hide elements one by one, then go to previous slide
     if (currentElementIndex > 0) {
       hideLastElement();
-    } else if (currentIndex > 0 && !isTransitioning) {
-      setTransitionDirection('prev');
-      setPreviousIndex(currentIndex);
-      setIsTransitioning(true);
-      
-      setTimeout(() => {
-        setCurrentIndex(currentIndex - 1);
-        setTimeout(() => {
-          setIsTransitioning(false);
-          setPreviousIndex(null);
-        }, currentTransition.duration * 1000);
-      }, 50);
+    } else if (currentIndex > 0) {
+      startTransition(currentIndex - 1);
     }
-  }, [currentIndex, isTransitioning, currentTransition.duration, currentElementIndex, hideLastElement]);
+  }, [currentIndex, currentElementIndex, hideLastElement, startTransition]);
 
   const goToSlide = useCallback((index: number) => {
-    if (index !== currentIndex && !isTransitioning) {
-      setTransitionDirection(index > currentIndex ? 'next' : 'prev');
-      setPreviousIndex(currentIndex);
-      setIsTransitioning(true);
-      
-      setTimeout(() => {
-        setCurrentIndex(index);
-        setTimeout(() => {
-          setIsTransitioning(false);
-          setPreviousIndex(null);
-        }, currentTransition.duration * 1000);
-      }, 50);
-    }
     setShowThumbnails(false);
-  }, [currentIndex, isTransitioning, currentTransition.duration]);
+    if (index !== currentIndex && !isTransitioning) {
+      startTransition(index);
+    }
+  }, [currentIndex, isTransitioning, startTransition]);
+
+  // Phase: paint the outgoing slide, then apply its "out" style so it animates away
+  useEffect(() => {
+    if (transitionPhase === 'out') {
+      const t = setTimeout(() => setOutApplied(true), 30);
+      return () => clearTimeout(t);
+    }
+  }, [transitionPhase]);
+
+  // Phase: once the "out" animation finishes, swap to the target slide and begin its entrance
+  useEffect(() => {
+    if (transitionPhase === 'out') {
+      const t = setTimeout(() => {
+        setCurrentIndex(targetIndexRef.current);
+        setOutApplied(false);
+        setTransitionPhase('in');
+      }, getTransitionDuration(currentIndex) * 1000 + 60);
+      return () => clearTimeout(t);
+    }
+  }, [transitionPhase, currentIndex, getTransitionDuration]);
+
+  // Phase: mount the entering slide at its start state, then apply the normal state
+  useEffect(() => {
+    if (transitionPhase === 'in') {
+      const t = setTimeout(() => setInApplied(true), 30);
+      return () => clearTimeout(t);
+    }
+  }, [transitionPhase]);
+
+  // Phase: once the "in" animation finishes, return to idle
+  useEffect(() => {
+    if (transitionPhase === 'in') {
+      const t = setTimeout(() => {
+        setTransitionPhase('idle');
+        setIsTransitioning(false);
+        setPreviousIndex(null);
+        setInApplied(false);
+      }, getTransitionDuration(currentIndex) * 1000 + 60);
+      return () => clearTimeout(t);
+    }
+  }, [transitionPhase, currentIndex, getTransitionDuration]);
 
   const toggleFullscreen = useCallback(() => {
     if (!document.fullscreenElement) {
-      document.documentElement.requestFullscreen();
-      setIsFullscreen(true);
+      // requestFullscreen is unsupported on iOS Safari (except <video>) - degrade gracefully
+      try {
+        const promise = document.documentElement.requestFullscreen();
+        if (promise && typeof promise.catch === 'function') {
+          promise.catch(() => {
+            // Fullscreen not supported - keep presenting in-place
+            setIsFullscreen(false);
+          });
+        } else {
+          setIsFullscreen(true);
+        }
+      } catch {
+        setIsFullscreen(false);
+      }
     } else {
       document.exitFullscreen();
       setIsFullscreen(false);
@@ -416,24 +477,6 @@ export const PresentationMode = ({
       document.removeEventListener('fullscreenchange', handleFullscreenChange);
     };
   }, [goToNext, goToPrevious, goToSlide, onClose, toggleFullscreen, slides.length, showNotes, isDrawingMode, showThumbnails, isAutoPlaying, isBlackout, showLaser, showShortcuts]);
-
-  // Get transition styles
-  const getSlideTransitionStyle = (isExiting: boolean): React.CSSProperties => {
-    const transition = currentTransition;
-    const duration = transition.duration;
-    const easing = transition.easing || 'ease-in-out';
-
-    if (isExiting) {
-      return {
-        ...getTransitionOutStyle(transition),
-        transition: `all ${duration}s ${easing}`,
-      };
-    }
-
-    return {
-      transition: `all ${duration}s ${easing}`,
-    };
-  };
 
   // Render element with animation - sorted by animation order
   const renderElementWithAnimation = (element: SlideElement, index: number, totalAnimatedBefore: number) => {
@@ -712,50 +755,52 @@ export const PresentationMode = ({
         className="absolute inset-0 flex items-center justify-center"
         style={{ perspective: '1200px' }}
       >
-        {/* Previous Slide (for transition) */}
-        {previousIndex !== null && isTransitioning && (
+        {/* Outgoing Slide (rendered only during the exit phase) */}
+        {isTransitioning && transitionPhase === 'out' && previousIndex !== null && (
           <div
             className="absolute rounded-lg overflow-hidden shadow-2xl"
             style={{
-              width: 960,
-              height: 540,
-              transform: `scale(${slideScale})`,
+              width: canvasWidth,
+              height: canvasHeight,
               transformOrigin: 'center center',
+              transition: `all ${getTransitionDuration(previousIndex)}s ${getTransitionEasing(previousIndex)}`,
               background: slides[previousIndex].backgroundColor,
               color: slides[previousIndex].textColor,
-              ...getSlideTransitionStyle(true),
+              ...(outApplied
+                ? withSlideTransform(getTransitionOutStyle(slideTransitions[slides[previousIndex].id] || DEFAULT_TRANSITION))
+                : { transform: `scale(${slideScale})` }),
             }}
           >
             {renderSlideContent(slides[previousIndex], false)}
           </div>
         )}
 
-        {/* Current Slide */}
-        <div
-          key={currentIndex}
-          className={cn(
-            "rounded-lg overflow-hidden shadow-2xl",
-            isTransitioning && "transition-all"
-          )}
-          style={{
-            width: 960,
-            height: 540,
-            transform: `scale(${slideScale})`,
-            transformOrigin: 'center center',
-            background: currentSlide.backgroundColor,
-            color: currentSlide.textColor,
-            ...getSlideTransitionStyle(false),
-            transitionDuration: `${currentTransition.duration}s`,
-          }}
-        >
-          {renderSlideContent(currentSlide, !isTransitioning)}
-        </div>
+        {/* Current Slide (rendered in idle and entrance phases) */}
+        {transitionPhase !== 'out' && (
+          <div
+            key={currentIndex}
+            className="rounded-lg overflow-hidden shadow-2xl"
+            style={{
+              width: canvasWidth,
+              height: canvasHeight,
+              transformOrigin: 'center center',
+              transition: `all ${getTransitionDuration(currentIndex)}s ${getTransitionEasing(currentIndex)}`,
+              background: currentSlide.backgroundColor,
+              color: currentSlide.textColor,
+              ...(transitionPhase === 'in' && !inApplied
+                ? withSlideTransform(getTransitionInStartStyle(currentTransition))
+                : { transform: `scale(${slideScale})` }),
+            }}
+          >
+            {renderSlideContent(currentSlide, !hasStarted)}
+          </div>
+        )}
       </div>
 
       {/* Bottom Toolbar */}
       {showToolbar && (
-        <div className="absolute bottom-6 left-1/2 -translate-x-1/2 pointer-events-auto z-50">
-          <div className="flex items-center gap-1 bg-black/80 backdrop-blur-md rounded-2xl px-4 py-2 shadow-2xl">
+        <div className="absolute bottom-6 left-1/2 -translate-x-1/2 pointer-events-auto z-50 max-w-[calc(100vw-1rem)]">
+          <div className="flex items-center gap-1 bg-black/80 backdrop-blur-md rounded-2xl px-4 py-2 shadow-2xl overflow-x-auto min-w-max scrollbar-thin">
             {/* Previous */}
             <Button 
               variant="ghost" 
@@ -768,12 +813,14 @@ export const PresentationMode = ({
             </Button>
 
             {/* Slide Counter */}
-            <div className="px-3 text-white text-sm font-medium min-w-[80px] text-center">
-              {currentIndex + 1} / {slides.length}
+            <div className="px-3 text-white text-center">
+              <div className="text-sm font-medium min-w-[60px]">
+                {currentIndex + 1} / {slides.length}
+              </div>
               {animatedElements.length > 0 && (
-                <span className="text-white/60 text-xs ml-1">
+                <div className="text-white/60 text-xs leading-tight">
                   ({currentElementIndex}/{animatedElements.length})
-                </span>
+                </div>
               )}
             </div>
 
@@ -944,7 +991,7 @@ export const PresentationMode = ({
       {/* Toggle Toolbar Button */}
       <button
         onClick={() => setShowToolbar(!showToolbar)}
-        className="absolute bottom-6 right-6 pointer-events-auto z-50 p-2 rounded-full bg-black/50 text-white hover:bg-black/70 transition-all"
+        className="absolute top-6 right-6 pointer-events-auto z-50 p-2 rounded-full bg-black/50 text-white hover:bg-black/70 transition-all"
         title={showToolbar ? (language === 'ar' ? 'إخفاء الأدوات' : 'Hide toolbar') : (language === 'ar' ? 'إظهار الأدوات' : 'Show toolbar')}
       >
         {showToolbar ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
@@ -967,7 +1014,7 @@ export const PresentationMode = ({
       {currentIndex > 0 && (
         <button
           onClick={goToPrevious}
-          className="absolute left-4 top-1/2 -translate-y-1/2 p-3 rounded-full bg-black/30 text-white hover:bg-black/50 transition-all pointer-events-auto opacity-0 hover:opacity-100 hover:scale-110"
+          className="absolute left-4 top-1/2 -translate-y-1/2 p-3 rounded-full bg-black/30 text-white hover:bg-black/50 transition-all pointer-events-auto opacity-100 md:opacity-0 md:hover:opacity-100 hover:scale-110"
         >
           <ChevronLeft className="w-8 h-8" />
         </button>
@@ -975,7 +1022,7 @@ export const PresentationMode = ({
       {currentIndex < slides.length - 1 && (
           <button
             onClick={goToNext}
-            className="absolute right-4 top-1/2 -translate-y-1/2 p-3 rounded-full bg-black/30 text-white hover:bg-black/50 transition-all pointer-events-auto opacity-0 hover:opacity-100 hover:scale-110"
+            className="absolute right-4 top-1/2 -translate-y-1/2 p-3 rounded-full bg-black/30 text-white hover:bg-black/50 transition-all pointer-events-auto opacity-100 md:opacity-0 md:hover:opacity-100 hover:scale-110"
           >
             <ChevronRight className="w-8 h-8" />
           </button>
@@ -992,7 +1039,7 @@ export const PresentationMode = ({
       {/* Thumbnails Grid Overlay */}
       {showThumbnails && (
         <div 
-          className="absolute inset-0 bg-black/90 backdrop-blur-sm z-50 pointer-events-auto overflow-auto scrollbar-thin scrollbar-thumb-primary/40 hover:scrollbar-thumb-primary/60 scrollbar-track-muted/20 p-8"
+          className="absolute inset-0 bg-black/90 backdrop-blur-sm z-50 pointer-events-auto overflow-auto scrollbar-thin scrollbar-thumb-primary/40 hover:scrollbar-thumb-primary/60 scrollbar-track-muted/20 p-4 sm:p-8"
           onClick={() => setShowThumbnails(false)}
         >
           <div className="max-w-6xl mx-auto">
@@ -1080,7 +1127,7 @@ export const PresentationMode = ({
           className="fixed inset-0 bg-black/90 z-[95] flex items-center justify-center cursor-pointer backdrop-blur-sm"
           onClick={() => setShowShortcuts(false)}
         >
-          <div className="bg-white/10 rounded-2xl p-8 max-w-lg w-full mx-4" onClick={(e) => e.stopPropagation()}>
+          <div className="bg-white/10 rounded-2xl p-6 sm:p-8 max-w-lg w-full mx-4 max-h-[80dvh] overflow-y-auto scrollbar-thin" onClick={(e) => e.stopPropagation()}>
             <div className="flex items-center justify-between mb-6">
               <h2 className="text-white text-xl font-bold">
                 {language === 'ar' ? 'اختصارات لوحة المفاتيح' : 'Keyboard Shortcuts'}

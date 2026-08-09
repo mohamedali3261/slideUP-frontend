@@ -316,7 +316,7 @@ export const TableEditor = ({
 
       {/* Context Menu for Selected Cell */}
       {selectedCell && (
-        <div className="absolute -top-12 left-0 right-0 flex items-center justify-center gap-1 bg-card border rounded-lg p-1 shadow-lg">
+        <div className="absolute -top-12 left-1/2 -translate-x-1/2 max-w-[calc(100%-1rem)] flex flex-wrap items-center justify-center gap-1 bg-card border rounded-lg p-1 shadow-lg">
           {/* Row Operations */}
           <DropdownMenu>
             <DropdownMenuTrigger asChild>

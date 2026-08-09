@@ -490,7 +490,7 @@ export const Dashboard = () => {
             <div className="flex items-center gap-2">
               {/* Sort */}
               <Select value={sortBy} onValueChange={(v) => setSortBy(v as SortBy)}>
-                <SelectTrigger className="w-[140px] sm:w-[160px] h-9 sm:h-10 text-xs sm:text-sm">
+                <SelectTrigger className="w-[120px] sm:w-[160px] h-9 sm:h-10 text-xs sm:text-sm">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -699,7 +699,7 @@ const PresentationCard = ({
       {/* Favorite Button */}
       <button
         onClick={onToggleFavorite}
-        className="absolute top-2 right-2 p-1.5 rounded-full bg-background/80 backdrop-blur-sm opacity-0 group-hover:opacity-100 transition-opacity"
+        className="absolute top-2 right-2 p-2 rounded-full bg-background/80 backdrop-blur-sm opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-opacity"
       >
         {isFavorite ? (
           <Star className="w-4 h-4 text-yellow-500 fill-yellow-500" />
@@ -836,7 +836,7 @@ const PresentationListItem = ({
           onClick={() => navigate(`/editor?id=${presentation.id}`)}
         >
           <Edit className="w-4 h-4 mr-2" />
-          {language === 'ar' ? 'تعديل' : 'Edit'}
+          <span className="hidden sm:inline">{language === 'ar' ? 'تعديل' : 'Edit'}</span>
         </Button>
 
         <DropdownMenu>

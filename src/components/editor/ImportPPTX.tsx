@@ -46,7 +46,7 @@ const AlertIcon = () => (
 );
 
 interface ImportPPTXProps {
-  onImport: (slides: SlideTemplate[], title: string) => void;
+  onImport: (slides: SlideTemplate[], title: string, size: { width: number; height: number }) => void;
 }
 
 interface ImportStatus {
@@ -56,9 +56,8 @@ interface ImportStatus {
   slideCount?: number;
 }
 
-// Canvas dimensions - same as editor
+// Canvas dimensions - same as editor base
 const CANVAS_W = 960;
-const CANVAS_H = 540;
 
 // PowerPoint theme scheme colors -> hex
 const SCHEME_COLORS: Record<string, string> = {
@@ -169,8 +168,8 @@ interface Trans { a: number; d: number; tx: number; ty: number; }
 const IDENTITY: Trans = { a: 1, d: 1, tx: 0, ty: 0 };
 
 // Renders a scaled-down snapshot of an imported slide for the preview thumbnails
-const PreviewThumbnail = ({ slide, index }: { slide: SlideTemplate; index: number }) => {
-  const scale = 0.1;
+const PreviewThumbnail = ({ slide, index, canvasWidth, canvasHeight }: { slide: SlideTemplate; index: number; canvasWidth: number; canvasHeight: number }) => {
+  const scale = 110 / canvasWidth;
   const renderElement = (el: SlideElement) => {
     const base: React.CSSProperties = {
       position: 'absolute',
@@ -302,13 +301,13 @@ const PreviewThumbnail = ({ slide, index }: { slide: SlideTemplate; index: numbe
   return (
     <div
       className="relative"
-      style={{ width: 960 * scale, height: 540 * scale }}
+      style={{ width: canvasWidth * scale, height: canvasHeight * scale }}
     >
       <div
         className="absolute top-0 left-0 overflow-hidden"
         style={{
-          width: 960,
-          height: 540,
+          width: canvasWidth,
+          height: canvasHeight,
           transform: `scale(${scale})`,
           transformOrigin: 'top left',
           backgroundColor: slide.backgroundColor || '#ffffff',
@@ -327,10 +326,11 @@ export const ImportPPTX = ({ onImport }: ImportPPTXProps) => {
   const [status, setStatus] = useState<ImportStatus>({ stage: 'idle', progress: 0, message: '' });
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [previewSlides, setPreviewSlides] = useState<SlideTemplate[]>([]);
+  const [importedSize, setImportedSize] = useState({ width: CANVAS_W, height: Math.round(CANVAS_W * 6858000 / 12192000) });
   const [importImages, setImportImages] = useState(true);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const parsePPTX = useCallback(async (file: File): Promise<SlideTemplate[]> => {
+  const parsePPTX = useCallback(async (file: File): Promise<{ slides: SlideTemplate[]; width: number; height: number }> => {
     setStatus({ stage: 'reading', progress: 10, message: language === 'ar' ? 'قراءة الملف...' : 'Reading file...' });
     
     const arrayBuffer = await file.arrayBuffer();
@@ -365,11 +365,16 @@ export const ImportPPTX = ({ onImport }: ImportPPTXProps) => {
     }
     
     console.log(`PPTX dimensions: ${slideWidthEMU} x ${slideHeightEMU} EMU`);
-    console.log(`Canvas: ${CANVAS_W} x ${CANVAS_H} px`);
     
-    // Conversion functions - convert EMU to canvas pixels (960x540 base)
-    const emuToPixelX = (emu: number) => Math.round((emu / slideWidthEMU) * CANVAS_W);
-    const emuToPixelY = (emu: number) => Math.round((emu / slideHeightEMU) * CANVAS_H);
+    // Keep the file's real aspect ratio - map the width to the base canvas width
+    // and derive the height so content is never stretched or squashed
+    const importedWidth = CANVAS_W;
+    const importedHeight = Math.max(1, Math.round((CANVAS_W * slideHeightEMU) / slideWidthEMU));
+    console.log(`Canvas: ${importedWidth} x ${importedHeight} px`);
+    
+    // Conversion functions - convert EMU to canvas pixels using equal scale on both axes
+    const emuToPixelX = (emu: number) => Math.round((emu / slideWidthEMU) * importedWidth);
+    const emuToPixelY = (emu: number) => Math.round((emu / slideHeightEMU) * importedHeight);
     
     // Find all slides
     const slideFiles = Object.keys(zip.files)
@@ -510,8 +515,8 @@ export const ImportPPTX = ({ onImport }: ImportPPTXProps) => {
         
         const txBodyMatch = spInner.match(/<p:txBody>([\s\S]*?)<\/p:txBody>/);
         const txBody = txBodyMatch ? txBodyMatch[1] : '';
-        const text = [...txBody.matchAll(/<a:t>([\s\S]*?)<\/a:t>/g)]
-          .map(m => m[1])
+        const text = [...txBody.matchAll(/<a:t>([\s\S]*?)<\/a:t>|<a:br\s*\/>|<\/a:br>/g)]
+          .map(m => m[1] !== undefined ? m[1] : '\n')
           .join('')
           .trim();
         
@@ -524,6 +529,15 @@ export const ImportPPTX = ({ onImport }: ImportPPTXProps) => {
           let textAlign: 'left' | 'center' | 'right' = 'left';
           if (txBody.includes('algn="ctr"')) textAlign = 'center';
           else if (txBody.includes('algn="r"')) textAlign = 'right';
+          
+          let verticalAlign: 'top' | 'middle' | 'bottom' | undefined;
+          const bodyPr = txBody.match(/<a:bodyPr[^>]*>/);
+          if (bodyPr) {
+            const anchor = bodyPr[0].match(/anchor="(t|ctr|b)"/);
+            if (anchor) {
+              verticalAlign = anchor[1] === 'ctr' ? 'middle' : anchor[1] === 'b' ? 'bottom' : 'top';
+            }
+          }
           
           const fontWeight = txBody.includes('b="1"') ? 'bold' : 'normal';
           
@@ -544,6 +558,7 @@ export const ImportPPTX = ({ onImport }: ImportPPTXProps) => {
             fontSize,
             fontWeight: fontWeight as 'normal' | 'bold',
             textAlign,
+            ...(verticalAlign ? { verticalAlign } : {}),
             color,
             ...(fill ? { backgroundColor: fill } : {}),
             zIndex: 10,
@@ -630,8 +645,8 @@ export const ImportPPTX = ({ onImport }: ImportPPTXProps) => {
           let cellMatch;
           while ((cellMatch = cellRegex.exec(rowMatch[1])) !== null) {
             const cellXml = cellMatch[1];
-            const text = [...cellXml.matchAll(/<a:t>([\s\S]*?)<\/a:t>/g)]
-              .map(m => m[1])
+            const text = [...cellXml.matchAll(/<a:t>([\s\S]*?)<\/a:t>|<a:br\s*\/>|<\/a:br>/g)]
+              .map(m => m[1] !== undefined ? m[1] : '\n')
               .join('')
               .trim();
             const tcPr = cellXml.match(/<a:tcPr>([\s\S]*?)<\/a:tcPr>/);
@@ -793,7 +808,7 @@ export const ImportPPTX = ({ onImport }: ImportPPTXProps) => {
       slideCount: slides.length,
     });
     
-    return slides;
+    return { slides, width: importedWidth, height: importedHeight };
   }, [language, importImages]);
 
   const handleFileSelect = useCallback(async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -810,8 +825,9 @@ export const ImportPPTX = ({ onImport }: ImportPPTXProps) => {
     setPreviewSlides([]);
 
     try {
-      const slides = await parsePPTX(file);
-      setPreviewSlides(slides);
+      const result = await parsePPTX(file);
+      setPreviewSlides(result.slides);
+      setImportedSize({ width: result.width, height: result.height });
     } catch (error) {
       setStatus({ 
         stage: 'error', 
@@ -824,16 +840,17 @@ export const ImportPPTX = ({ onImport }: ImportPPTXProps) => {
   const handleImport = useCallback(() => {
     if (previewSlides.length === 0) return;
     const title = selectedFile?.name.replace(/\.pptx?$/i, '') || 'Imported';
-    onImport(previewSlides, title);
+    onImport(previewSlides, title, importedSize);
     toast.success(language === 'ar' ? `تم استيراد ${previewSlides.length} شرائح!` : `Imported ${previewSlides.length} slides!`);
     setIsOpen(false);
     resetState();
-  }, [previewSlides, selectedFile, onImport, language]);
+  }, [previewSlides, selectedFile, onImport, importedSize, language]);
 
   const resetState = useCallback(() => {
     setSelectedFile(null);
     setStatus({ stage: 'idle', progress: 0, message: '' });
     setPreviewSlides([]);
+    setImportedSize({ width: CANVAS_W, height: Math.round(CANVAS_W * 6858000 / 12192000) });
     if (fileInputRef.current) fileInputRef.current.value = '';
   }, []);
 
@@ -939,17 +956,19 @@ export const ImportPPTX = ({ onImport }: ImportPPTXProps) => {
               <p className="text-sm font-semibold text-gray-700 dark:text-gray-200">
                 {language === 'ar' ? `معاينة (${previewSlides.length} شرائح)` : `Preview (${previewSlides.length} slides)`}
               </p>
-              <div className="flex gap-2 overflow-x-auto pb-2">
+              <div className="flex gap-2 overflow-x-auto pb-2 items-start">
                 {previewSlides.slice(0, 8).map((slide, index) => (
                   <div
                     key={slide.id}
-                    className="flex-shrink-0 rounded-lg border border-gray-200 dark:border-gray-700 overflow-hidden bg-white dark:bg-gray-800 shadow-sm w-[110px] aspect-video"
+                    className="flex-shrink-0 rounded-lg border border-gray-200 dark:border-gray-700 overflow-hidden bg-white dark:bg-gray-800 shadow-sm"
+                    style={{ width: 110, height: Math.round(110 * importedSize.height / importedSize.width) }}
                   >
-                    <PreviewThumbnail slide={slide} index={index} />
+                    <PreviewThumbnail slide={slide} index={index} canvasWidth={importedSize.width} canvasHeight={importedSize.height} />
                   </div>
                 ))}
                 {previewSlides.length > 8 && (
-                  <div className="flex-shrink-0 w-[110px] aspect-video rounded-lg border border-dashed border-gray-300 dark:border-gray-600 bg-gray-50 dark:bg-gray-800/50 flex items-center justify-center">
+                  <div className="flex-shrink-0 rounded-lg border border-dashed border-gray-300 dark:border-gray-600 bg-gray-50 dark:bg-gray-800/50 flex items-center justify-center"
+                    style={{ width: 110, height: Math.round(110 * importedSize.height / importedSize.width) }}>
                     <span className="text-xs font-semibold text-gray-500 dark:text-gray-400">+{previewSlides.length - 8}</span>
                   </div>
                 )}

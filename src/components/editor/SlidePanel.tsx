@@ -216,7 +216,7 @@ const renderThumbnailElement = (element: SlideElement) => {
 };
 
 // Debounced thumbnail - updates 500ms after last change to prevent hanging
-const SlideThumbnail = memo(({ slide }: { slide: SlideTemplate }) => {
+const SlideThumbnail = memo(({ slide, canvasWidth, canvasHeight }: { slide: SlideTemplate; canvasWidth: number; canvasHeight: number }) => {
   const [debouncedSlide, setDebouncedSlide] = useState(slide);
   const containerRef = useRef<HTMLDivElement>(null);
   const [scale, setScale] = useState(0.1875); // default 180px / 960px
@@ -228,15 +228,15 @@ const SlideThumbnail = memo(({ slide }: { slide: SlideTemplate }) => {
     return () => clearTimeout(timer);
   }, [slide]);
 
-  // Measure the actual container size and scale the 960x540 canvas to fill it exactly
+  // Measure the actual container size and scale the canvas to fill it exactly
   const updateScale = useCallback(() => {
     const container = containerRef.current;
     if (!container) return;
     const width = container.clientWidth;
     const height = container.clientHeight;
     if (width <= 0 || height <= 0) return;
-    setScale(Math.min(width / 960, height / 540));
-  }, []);
+    setScale(Math.min(width / canvasWidth, height / canvasHeight));
+  }, [canvasWidth, canvasHeight]);
 
   useEffect(() => {
     updateScale();
@@ -258,8 +258,8 @@ const SlideThumbnail = memo(({ slide }: { slide: SlideTemplate }) => {
         style={{
           transform: `scale(${scale})`,
           transformOrigin: 'top left',
-          width: '960px',
-          height: '540px',
+          width: canvasWidth,
+          height: canvasHeight,
         }}
       >
       {hasElements ? (
@@ -303,6 +303,8 @@ interface SlidePanelProps {
   onMoveSlide?: (fromIndex: number, toIndex: number) => void;
   slideTransitions?: Record<string, SlideTransition>;
   onTransitionChange?: (slideId: string, transition: SlideTransition) => void;
+  canvasWidth?: number;
+  canvasHeight?: number;
   // Layers props
   activeSlide?: SlideTemplate;
   selectedElementId?: string | null;
@@ -344,6 +346,8 @@ export const SlidePanel = ({
   onMoveSlide,
   slideTransitions = {},
   onTransitionChange,
+  canvasWidth = 960,
+  canvasHeight = 540,
   activeSlide,
   selectedElementId,
   onSelectElement,
@@ -462,13 +466,14 @@ export const SlidePanel = ({
                 >
                   {/* Slide Thumbnail - Live Preview */}
                   <div
-                    className="aspect-video relative overflow-hidden rounded-[4px]"
+                    className="relative overflow-hidden rounded-[4px]"
                     style={{
                       background: slide.backgroundColor,
+                      aspectRatio: `${canvasWidth} / ${canvasHeight}`,
                     }}
                   >
                     {/* Memoized slide content to prevent re-renders on every keystroke */}
-                    <SlideThumbnail slide={slide} />
+                    <SlideThumbnail slide={slide} canvasWidth={canvasWidth} canvasHeight={canvasHeight} />
 
                     {/* Hover overlay */}
                     <div className="absolute inset-0 bg-black/0 group-hover:bg-black/5 transition-colors duration-200" />

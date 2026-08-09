@@ -6,32 +6,28 @@ import * as LucideIcons from 'lucide-react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { createElement } from 'react';
 
-// Constants for conversion
+// Base export resolution (kept at 1920px wide; height follows the canvas aspect ratio)
 const EXPORT_WIDTH = 1920;
-const EXPORT_HEIGHT = 1080;
-// Editor canvas dimensions
-const EDITOR_WIDTH = 960;
-const EDITOR_HEIGHT = 540;
-// Scale factor to convert editor coordinates to export coordinates
-const SCALE_FACTOR = EXPORT_WIDTH / EDITOR_WIDTH; // = 2
-
-const PPTX_WIDTH = 10;
-const PPTX_HEIGHT = 5.625;
-
-const pxToInchX = (px: number) => (px / EDITOR_WIDTH) * PPTX_WIDTH;
-const pxToInchY = (px: number) => (px / EDITOR_HEIGHT) * PPTX_HEIGHT;
-const pxToInchW = (px: number) => (px / EDITOR_WIDTH) * PPTX_WIDTH;
-const pxToInchH = (px: number) => (px / EDITOR_HEIGHT) * PPTX_HEIGHT;
 
 const getFontWeight = (weight?: string): boolean => {
   return weight === 'bold' || weight === 'semibold' || weight === 'extrabold';
 };
 
-export const exportToPptx = async (slides: SlideTemplate[], title: string) => {
+export const exportToPptx = async (slides: SlideTemplate[], title: string, canvasWidth = 960, canvasHeight = 540) => {
   const pptx = new pptxgen();
   pptx.title = title;
   pptx.author = 'SlideSpark Studio';
-  pptx.layout = 'LAYOUT_WIDE';
+  
+  // Build the slide layout to match the canvas aspect ratio (10in wide)
+  const pptxWidth = 10;
+  const pptxHeight = (pptxWidth * canvasHeight) / canvasWidth;
+  pptx.defineLayout({ name: 'CUSTOM', width: pptxWidth, height: pptxHeight });
+  pptx.layout = 'CUSTOM';
+  
+  const toInchX = (px: number) => (px / canvasWidth) * pptxWidth;
+  const toInchY = (px: number) => (px / canvasHeight) * pptxHeight;
+  const toInchW = (px: number) => (px / canvasWidth) * pptxWidth;
+  const toInchH = (px: number) => (px / canvasHeight) * pptxHeight;
   
   for (const slide of slides) {
     const pptSlide = pptx.addSlide();
@@ -45,7 +41,7 @@ export const exportToPptx = async (slides: SlideTemplate[], title: string) => {
 
     if (slide.elements && slide.elements.length > 0) {
       for (const element of slide.elements) {
-        await addElementToPptx(pptSlide, pptx, element);
+        await addElementToPptx(pptSlide, pptx, element, toInchX, toInchY, toInchW, toInchH);
       }
     } else {
       renderDefaultSlideContent(pptSlide, pptx, slide);
@@ -56,11 +52,13 @@ export const exportToPptx = async (slides: SlideTemplate[], title: string) => {
 };
 
 
-const addElementToPptx = async (pptSlide: any, pptx: any, element: SlideElement) => {
-  const x = pxToInchX(element.x);
-  const y = pxToInchY(element.y);
-  const w = pxToInchW(element.width);
-  const h = pxToInchH(element.height);
+const addElementToPptx = async (pptSlide: any, pptx: any, element: SlideElement,
+  toInchX: (px: number) => number, toInchY: (px: number) => number,
+  toInchW: (px: number) => number, toInchH: (px: number) => number) => {
+  const x = toInchX(element.x);
+  const y = toInchY(element.y);
+  const w = toInchW(element.width);
+  const h = toInchH(element.height);
 
   switch (element.type) {
     case 'text':
@@ -258,32 +256,34 @@ const renderDefaultSlideContent = (pptSlide: any, pptx: any, slide: SlideTemplat
 
 
 // Export ALL slides to PDF
-export const exportToPdf = async (slides: SlideTemplate[], title: string) => {
-  const pdf = new jsPDF({ orientation: 'landscape', unit: 'px', format: [1920, 1080] });
+export const exportToPdf = async (slides: SlideTemplate[], title: string, canvasWidth = 960, canvasHeight = 540) => {
+  const exportWidth = EXPORT_WIDTH;
+  const exportHeight = Math.round((exportWidth * canvasHeight) / canvasWidth);
+  const pdf = new jsPDF({ orientation: 'landscape', unit: 'px', format: [exportWidth, exportHeight] });
 
   for (let i = 0; i < slides.length; i++) {
-    const slideHtml = await renderSlideToHtml(slides[i], i);
+    const slideHtml = await renderSlideToHtml(slides[i], i, canvasWidth, canvasHeight);
     
-    if (i > 0) pdf.addPage([1920, 1080], 'landscape');
+    if (i > 0) pdf.addPage([exportWidth, exportHeight], 'landscape');
 
     try {
       const canvas = await html2canvas(slideHtml, {
         scale: 1,
         useCORS: true,
         allowTaint: true,
-        width: 1920,
-        height: 1080,
+        width: exportWidth,
+        height: exportHeight,
         backgroundColor: slides[i].backgroundColor,
         logging: false,
-        windowWidth: 1920,
-        windowHeight: 1080,
+        windowWidth: exportWidth,
+        windowHeight: exportHeight,
         x: 0,
         y: 0,
         scrollX: 0,
         scrollY: 0,
       });
       // Use JPEG with 0.9 quality for smaller file size
-      pdf.addImage(canvas.toDataURL('image/jpeg', 0.9), 'JPEG', 0, 0, 1920, 1080);
+      pdf.addImage(canvas.toDataURL('image/jpeg', 0.9), 'JPEG', 0, 0, exportWidth, exportHeight);
     } catch (e) {
       console.error('Error rendering slide', i, e);
     }
@@ -294,21 +294,23 @@ export const exportToPdf = async (slides: SlideTemplate[], title: string) => {
 };
 
 // Export ALL slides to images
-export const exportToImages = async (slides: SlideTemplate[], title: string) => {
+export const exportToImages = async (slides: SlideTemplate[], title: string, canvasWidth = 960, canvasHeight = 540) => {
+  const exportWidth = EXPORT_WIDTH;
+  const exportHeight = Math.round((exportWidth * canvasHeight) / canvasWidth);
   for (let i = 0; i < slides.length; i++) {
-    const slideHtml = await renderSlideToHtml(slides[i], i);
+    const slideHtml = await renderSlideToHtml(slides[i], i, canvasWidth, canvasHeight);
 
     try {
       const canvas = await html2canvas(slideHtml, {
         scale: 1,
         useCORS: true,
         allowTaint: true,
-        width: 1920,
-        height: 1080,
+        width: exportWidth,
+        height: exportHeight,
         backgroundColor: slides[i].backgroundColor,
         logging: false,
-        windowWidth: 1920,
-        windowHeight: 1080,
+        windowWidth: exportWidth,
+        windowHeight: exportHeight,
         x: 0,
         y: 0,
         scrollX: 0,
@@ -327,11 +329,14 @@ export const exportToImages = async (slides: SlideTemplate[], title: string) => 
 };
 
 
-const renderSlideToHtml = async (slide: SlideTemplate, index: number): Promise<HTMLDivElement> => {
+const renderSlideToHtml = async (slide: SlideTemplate, index: number, canvasWidth = 960, canvasHeight = 540): Promise<HTMLDivElement> => {
+  const exportWidth = EXPORT_WIDTH;
+  const exportHeight = Math.round((exportWidth * canvasHeight) / canvasWidth);
+  const scale = exportWidth / canvasWidth;
   const container = document.createElement('div');
   container.id = `export-slide-${index}`;
   container.style.cssText = `
-    position: absolute; left: -9999px; top: 0; width: 1920px; height: 1080px;
+    position: absolute; left: -9999px; top: 0; width: ${exportWidth}px; height: ${exportHeight}px;
     background: ${slide.backgroundColor}; color: ${slide.textColor};
     font-family: system-ui, -apple-system, sans-serif; overflow: hidden;
     box-sizing: border-box;
@@ -339,7 +344,7 @@ const renderSlideToHtml = async (slide: SlideTemplate, index: number): Promise<H
 
   if (slide.elements && slide.elements.length > 0) {
     for (const element of slide.elements) {
-      container.appendChild(renderElementToHtml(element, slide));
+      container.appendChild(renderElementToHtml(element, slide, scale));
     }
   } else {
     container.appendChild(renderDefaultContentToHtml(slide));
@@ -353,15 +358,15 @@ const renderSlideToHtml = async (slide: SlideTemplate, index: number): Promise<H
   return container;
 };
 
-const renderElementToHtml = (element: SlideElement, slide: SlideTemplate): HTMLElement => {
+const renderElementToHtml = (element: SlideElement, slide: SlideTemplate, scale: number): HTMLElement => {
   const el = document.createElement('div');
   
   // Scale element position and size from editor coordinates to export coordinates
-  const scaledX = element.x * SCALE_FACTOR;
-  const scaledY = element.y * SCALE_FACTOR;
-  const scaledWidth = element.width * SCALE_FACTOR;
-  const scaledHeight = element.height * SCALE_FACTOR;
-  const scaledFontSize = (element.fontSize || 16) * SCALE_FACTOR;
+  const scaledX = element.x * scale;
+  const scaledY = element.y * scale;
+  const scaledWidth = element.width * scale;
+  const scaledHeight = element.height * scale;
+  const scaledFontSize = (element.fontSize || 16) * scale;
   
   el.style.cssText = `
     position: absolute; left: ${scaledX}px; top: ${scaledY}px;
@@ -375,9 +380,9 @@ const renderElementToHtml = (element: SlideElement, slide: SlideTemplate): HTMLE
         font-size: ${scaledFontSize}px; font-weight: ${element.fontWeight || 'normal'};
         font-style: ${element.fontStyle || 'normal'}; text-align: ${element.textAlign || 'left'};
         color: ${element.color || slide.textColor}; font-family: ${element.fontFamily || 'inherit'};
-        line-height: ${element.lineHeight || 1.5}; letter-spacing: ${(element.letterSpacing || 0) * SCALE_FACTOR}px;
+        line-height: ${element.lineHeight || 1.5}; letter-spacing: ${(element.letterSpacing || 0) * scale}px;
         text-decoration: ${element.textDecoration || 'none'}; text-transform: ${element.textTransform || 'none'};
-        display: flex; padding: ${8 * SCALE_FACTOR}px; white-space: pre-wrap; word-wrap: break-word; overflow: visible;
+        display: flex; padding: ${8 * scale}px; white-space: pre-wrap; word-wrap: break-word; overflow: visible;
         align-items: ${element.verticalAlign === 'middle' ? 'center' : element.verticalAlign === 'bottom' ? 'flex-end' : 'flex-start'};
         justify-content: ${element.textAlign === 'center' ? 'center' : element.textAlign === 'right' ? 'flex-end' : 'flex-start'};
       `;
@@ -389,19 +394,19 @@ const renderElementToHtml = (element: SlideElement, slide: SlideTemplate): HTMLE
       break;
 
     case 'shape':
-      const scaledBorderRadius = (element.borderRadius || 0) * SCALE_FACTOR;
+      const scaledBorderRadius = (element.borderRadius || 0) * scale;
       el.style.cssText += `
         background-color: ${element.backgroundColor || '#3b82f6'};
         border-radius: ${element.shapeType === 'circle' ? '50%' : scaledBorderRadius + 'px'};
       `;
-      if (element.border) el.style.border = `${element.border.width * SCALE_FACTOR}px ${element.border.style} ${element.border.color}`;
+      if (element.border) el.style.border = `${element.border.width * scale}px ${element.border.style} ${element.border.color}`;
       break;
 
     case 'image':
       if (element.imageUrl) {
         const img = document.createElement('img');
         img.src = element.imageUrl;
-        img.style.cssText = `width: 100%; height: 100%; object-fit: ${element.objectFit || 'cover'}; border-radius: ${(element.borderRadius || 0) * SCALE_FACTOR}px;`;
+        img.style.cssText = `width: 100%; height: 100%; object-fit: ${element.objectFit || 'cover'}; border-radius: ${(element.borderRadius || 0) * scale}px;`;
         el.appendChild(img);
       }
       break;
@@ -409,13 +414,13 @@ const renderElementToHtml = (element: SlideElement, slide: SlideTemplate): HTMLE
     case 'table':
       if (element.tableConfig) {
         const table = document.createElement('table');
-        table.style.cssText = `width: 100%; height: 100%; border-collapse: collapse; font-size: ${14 * SCALE_FACTOR}px;`;
+        table.style.cssText = `width: 100%; height: 100%; border-collapse: collapse; font-size: ${14 * scale}px;`;
         element.tableConfig.cells.forEach((row, rowIndex) => {
           const tr = document.createElement('tr');
           row.forEach((cell) => {
             const td = document.createElement(rowIndex === 0 && element.tableConfig?.headerRow ? 'th' : 'td');
             td.textContent = cell.content || '';
-            td.style.cssText = `border: 1px solid ${element.tableConfig?.borderColor || '#e5e7eb'}; padding: ${8 * SCALE_FACTOR}px; text-align: ${cell.textAlign || 'left'};`;
+            td.style.cssText = `border: 1px solid ${element.tableConfig?.borderColor || '#e5e7eb'}; padding: ${8 * scale}px; text-align: ${cell.textAlign || 'left'};`;
             tr.appendChild(td);
           });
           table.appendChild(tr);
@@ -426,7 +431,7 @@ const renderElementToHtml = (element: SlideElement, slide: SlideTemplate): HTMLE
 
     case 'code':
       if (element.codeConfig) {
-        el.style.cssText += `background-color: #1e1e1e; color: #d4d4d4; font-family: 'Courier New', monospace; font-size: ${14 * SCALE_FACTOR}px; padding: ${16 * SCALE_FACTOR}px; border-radius: ${8 * SCALE_FACTOR}px; white-space: pre; overflow: auto;`;
+        el.style.cssText += `background-color: #1e1e1e; color: #d4d4d4; font-family: 'Courier New', monospace; font-size: ${14 * scale}px; padding: ${16 * scale}px; border-radius: ${8 * scale}px; white-space: pre; overflow: auto;`;
         el.textContent = element.codeConfig.code || '';
       }
       break;
@@ -434,9 +439,9 @@ const renderElementToHtml = (element: SlideElement, slide: SlideTemplate): HTMLE
     case 'icon':
       if (element.iconConfig) {
         const { name, color, size, strokeWidth, backgroundColor, backgroundRadius, rotation } = element.iconConfig;
-        const scaledSize = size * SCALE_FACTOR;
-        const scaledPadding = backgroundColor ? 12 * SCALE_FACTOR : 0;
-        const scaledBgRadius = (backgroundRadius || 0) * SCALE_FACTOR;
+        const scaledSize = size * scale;
+        const scaledPadding = backgroundColor ? 12 * scale : 0;
+        const scaledBgRadius = (backgroundRadius || 0) * scale;
         
         el.style.cssText += `
           display: flex; align-items: center; justify-content: center;
@@ -483,7 +488,7 @@ const renderElementToHtml = (element: SlideElement, slide: SlideTemplate): HTMLE
         const chartType = element.chartConfig.type || 'bar';
         const colors = ['#8b5cf6', '#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#06b6d4', '#ec4899', '#84cc16'];
         
-        el.style.cssText += `display: flex; flex-direction: column; padding: ${16 * SCALE_FACTOR}px; background: #f8f9fa; border-radius: ${8 * SCALE_FACTOR}px;`;
+        el.style.cssText += `display: flex; flex-direction: column; padding: ${16 * scale}px; background: #f8f9fa; border-radius: ${8 * scale}px;`;
         
         if (chartType === 'pie') {
           // Simple pie chart representation using CSS conic-gradient
@@ -509,7 +514,7 @@ const renderElementToHtml = (element: SlideElement, slide: SlideTemplate): HTMLE
           // Bar/Line chart as simple bars
           const maxValue = Math.max(...chartData.map(d => d.value || 0), 1);
           const barContainer = document.createElement('div');
-          barContainer.style.cssText = `display: flex; align-items: flex-end; justify-content: space-around; height: 80%; width: 100%; padding-top: ${16 * SCALE_FACTOR}px;`;
+          barContainer.style.cssText = `display: flex; align-items: flex-end; justify-content: space-around; height: 80%; width: 100%; padding-top: ${16 * scale}px;`;
           
           chartData.forEach((item, index) => {
             const barHeight = ((item.value || 0) / maxValue) * 100;
@@ -518,9 +523,9 @@ const renderElementToHtml = (element: SlideElement, slide: SlideTemplate): HTMLE
             barWrapper.style.cssText = `display: flex; flex-direction: column; align-items: center; flex: 1; height: 100%;`;
             barWrapper.innerHTML = `
               <div style="flex: 1; display: flex; align-items: flex-end; width: 100%; justify-content: center;">
-                <div style="width: 60%; height: ${barHeight}%; background: ${color}; border-radius: ${4 * SCALE_FACTOR}px ${4 * SCALE_FACTOR}px 0 0;"></div>
+                <div style="width: 60%; height: ${barHeight}%; background: ${color}; border-radius: ${4 * scale}px ${4 * scale}px 0 0;"></div>
               </div>
-              <div style="font-size: ${12 * SCALE_FACTOR}px; margin-top: ${8 * SCALE_FACTOR}px; text-align: center; color: #333;">${item.name || ''}</div>
+              <div style="font-size: ${12 * scale}px; margin-top: ${8 * scale}px; text-align: center; color: #333;">${item.name || ''}</div>
             `;
             barContainer.appendChild(barWrapper);
           });
@@ -534,8 +539,8 @@ const renderElementToHtml = (element: SlideElement, slide: SlideTemplate): HTMLE
       // Media elements can't be exported to static images, show placeholder
       el.style.cssText += `
         display: flex; align-items: center; justify-content: center;
-        background: #f0f0f0; border-radius: ${8 * SCALE_FACTOR}px;
-        font-size: ${24 * SCALE_FACTOR}px; color: #666;
+        background: #f0f0f0; border-radius: ${8 * scale}px;
+        font-size: ${24 * scale}px; color: #666;
       `;
       el.textContent = `[${element.type.toUpperCase()}]`;
       break;

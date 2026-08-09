@@ -169,6 +169,14 @@ All colors MUST be HSL.
     scrollbar-color: hsl(var(--primary) / 0.4) hsl(var(--muted) / 0.2);
   }
   
+  .scrollbar-none {
+    scrollbar-width: none;
+  }
+  
+  .scrollbar-none::-webkit-scrollbar {
+    display: none;
+  }
+  
   /* Webkit scrollbar base styles */
   .scrollbar-thin::-webkit-scrollbar {
     width: 6px;

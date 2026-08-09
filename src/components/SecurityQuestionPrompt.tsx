@@ -34,9 +34,9 @@ const SecurityQuestionPrompt = () => {
     <div className="fixed bottom-6 left-6 right-6 md:left-auto md:right-6 md:w-96 bg-slate-800 border border-slate-700 rounded-xl shadow-2xl p-4 z-50 animate-in slide-in-from-bottom-5" dir="rtl">
       <button
         onClick={handleDismiss}
-        className="absolute top-3 left-3 text-slate-400 hover:text-white transition-colors"
+        className="absolute top-2 left-2 p-2 text-slate-400 hover:text-white transition-colors"
       >
-        <X className="w-4 h-4" />
+        <X className="w-5 h-5" />
       </button>
       
       <div className="flex items-start gap-3 mb-3">

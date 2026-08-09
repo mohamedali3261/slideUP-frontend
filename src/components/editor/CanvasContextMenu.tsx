@@ -155,7 +155,7 @@ export const CanvasContextMenu = ({
   return createPortal(
     <div
       ref={menuRef}
-      className="fixed z-[9999] min-w-[200px] bg-white dark:bg-gray-900 rounded-lg shadow-xl border border-gray-200 dark:border-gray-700 py-1.5 px-1.5 animate-in fade-in zoom-in-95 duration-100"
+      className="fixed z-[9999] min-w-[200px] max-w-[calc(100vw-1rem)] max-h-[calc(100dvh-1rem)] overflow-y-auto scrollbar-thin bg-white dark:bg-gray-900 rounded-lg shadow-xl border border-gray-200 dark:border-gray-700 py-1.5 px-1.5 animate-in fade-in zoom-in-95 duration-100"
       style={position ? { left: position.left, top: position.top } : { left: x, top: y }}
     >
       <MenuItem

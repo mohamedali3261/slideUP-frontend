@@ -4,7 +4,7 @@ import { SlideTemplate, SlideElement } from '@/data/templates';
 import { DraggableElement } from './DraggableElement';
 import { CanvasContextMenu } from './CanvasContextMenu';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
-import { Maximize2, ZoomIn, ZoomOut, Move, PanelLeft, PanelRight } from 'lucide-react';
+import { Maximize2, ZoomIn, ZoomOut, Move, PanelLeft, PanelRight, Ruler, Magnet, Hand } from 'lucide-react';
 import { toast } from 'sonner';
 
 // Custom icon storage key (same as IconLibrary)
@@ -25,6 +25,9 @@ interface SlideCanvasProps {
   canvasWidth?: number;
   canvasHeight?: number;
   showRulers?: boolean;
+  showGuides?: boolean;
+  onToggleRulers?: () => void;
+  onToggleGuides?: () => void;
   showSlidesPanel?: boolean;
   showPropertiesPanel?: boolean;
   onToggleSlidesPanel?: () => void;
@@ -46,6 +49,9 @@ export const SlideCanvas = ({
   canvasWidth: propCanvasWidth = 960,
   canvasHeight: propCanvasHeight = 540,
   showRulers = false,
+  showGuides = true,
+  onToggleRulers,
+  onToggleGuides,
   showSlidesPanel,
   showPropertiesPanel,
   onToggleSlidesPanel,
@@ -62,6 +68,16 @@ export const SlideCanvas = ({
   const [isSpacePressed, setIsSpacePressed] = useState(false);
   const [panOffset, setPanOffset] = useState({ x: 0, y: 0 });
   const panStartRef = useRef({ x: 0, y: 0, offsetX: 0, offsetY: 0 });
+  // Touch handling: guards against synthetic mouse events fired after touch
+  const touchActiveRef = useRef(false);
+  const panMovedRef = useRef(false);
+  const suppressClickRef = useRef(false);
+  // Pinch zoom + double-tap zoom state
+  const pinchStartRef = useRef({ distance: 0, zoom: zoom });
+  const lastTapRef = useRef({ time: 0, x: 0, y: 0 });
+  // Long-press to open the context menu on touch devices
+  const longPressTimerRef = useRef<number | null>(null);
+  const longPressTriggeredRef = useRef(false);
   
   // Multi-select state
   const [isSelecting, setIsSelecting] = useState(false);
@@ -70,6 +86,13 @@ export const SlideCanvas = ({
   // Context menu state
   const [contextMenu, setContextMenu] = useState<{ x: number; y: number; isOpen: boolean }>({ x: 0, y: 0, isOpen: false });
   const [clipboard, setClipboard] = useState<SlideElement | null>(null);
+
+  // Smart alignment guides (reported by the dragged element, drawn on the canvas)
+  const [guides, setGuides] = useState<{ v: number[]; h: number[] }>({ v: [], h: [] });
+  // Cursor marker positions on the rulers (screen coords)
+  const [rulerMarker, setRulerMarker] = useState<{ hx: number; vy: number; active: boolean }>({ hx: 0, vy: 0, active: false });
+  const hRulerRef = useRef<HTMLDivElement>(null);
+  const vRulerRef = useRef<HTMLDivElement>(null);
 
   // Keep zoom ref updated
   useEffect(() => {
@@ -138,6 +161,11 @@ export const SlideCanvas = ({
 
   // Handle pan mouse events
   const handlePanStart = useCallback((e: React.MouseEvent) => {
+    if (touchActiveRef.current) {
+      // Synthetic mouse event fired after a touch gesture - ignore it
+      touchActiveRef.current = false;
+      return;
+    }
     if (isSpacePressed || e.button === 1) { // Space + click or middle mouse
       e.preventDefault();
       setIsPanning(true);
@@ -170,6 +198,128 @@ export const SlideCanvas = ({
   const handlePanEnd = useCallback(() => {
     setIsPanning(false);
   }, []);
+
+  // Touch panning (mobile): one-finger drag on empty canvas area pans the canvas
+  const handleTouchPanStart = useCallback((e: React.TouchEvent) => {
+    touchActiveRef.current = true;
+    panMovedRef.current = false;
+
+    // Two fingers down - start pinch zoom (disables one-finger pan)
+    if (e.touches.length === 2) {
+      setIsPanning(false);
+      const t1 = e.touches[0];
+      const t2 = e.touches[1];
+      pinchStartRef.current = {
+        distance: Math.hypot(t1.clientX - t2.clientX, t1.clientY - t2.clientY),
+        zoom: zoomRef.current,
+      };
+      return;
+    }
+
+    const target = e.target as HTMLElement;
+    const isInteractive = !!target.closest('[data-element-id], input, textarea, button, a, [contenteditable]');
+    const isCanvasArea = !!target.closest('[data-canvas-area]') || target.id === 'slide-canvas';
+
+    if (e.touches.length !== 1 || !isCanvasArea || isInteractive) {
+      return;
+    }
+
+    const touch = e.touches[0];
+    setIsPanning(true);
+    panStartRef.current = { x: touch.clientX, y: touch.clientY, offsetX: panOffset.x, offsetY: panOffset.y };
+  }, [panOffset]);
+
+  const handleTouchPanMove = useCallback((e: React.TouchEvent) => {
+    // Pinch zoom with two fingers
+    if (e.touches.length === 2) {
+      const t1 = e.touches[0];
+      const t2 = e.touches[1];
+      const distance = Math.hypot(t1.clientX - t2.clientX, t1.clientY - t2.clientY);
+      const startDistance = pinchStartRef.current.distance || 1;
+      const ratio = distance / startDistance;
+      const newZoom = Math.min(200, Math.max(25, Math.round(pinchStartRef.current.zoom * ratio)));
+      if (newZoom !== zoomRef.current && onZoomChange) {
+        onZoomChange(newZoom);
+      }
+      return;
+    }
+
+    if (!isPanning || e.touches.length !== 1) return;
+    const touch = e.touches[0];
+    const dx = touch.clientX - panStartRef.current.x;
+    const dy = touch.clientY - panStartRef.current.y;
+    if (Math.abs(dx) > 5 || Math.abs(dy) > 5) {
+      panMovedRef.current = true;
+    }
+    setPanOffset(prev => ({ x: prev.x + dx, y: prev.y + dy }));
+    panStartRef.current.x = touch.clientX;
+    panStartRef.current.y = touch.clientY;
+  }, [isPanning, onZoomChange]);
+
+  const handleTouchPanEnd = useCallback((e: React.TouchEvent) => {
+    setIsPanning(false);
+    // Double-tap to zoom in/out (only for clean taps that didn't move)
+    if (e.touches.length === 0 && e.changedTouches.length === 1 && !panMovedRef.current) {
+      const t = e.changedTouches[0];
+      const now = Date.now();
+      const last = lastTapRef.current;
+      if (now - last.time < 300 && Math.abs(t.clientX - last.x) < 40 && Math.abs(t.clientY - last.y) < 40 && onZoomChange) {
+        const newZoom = zoomRef.current >= 100
+          ? Math.max(25, zoomRef.current - 30)
+          : Math.min(200, zoomRef.current + 30);
+        onZoomChange(newZoom);
+        lastTapRef.current = { time: 0, x: 0, y: 0 };
+      } else {
+        lastTapRef.current = { time: now, x: t.clientX, y: t.clientY };
+      }
+    }
+    // Keep the touch guard active briefly so the synthetic mousedown gets ignored
+    setTimeout(() => { touchActiveRef.current = false; }, 400);
+    // Suppress the synthetic click that follows a pan so it doesn't deselect
+    if (panMovedRef.current) {
+      suppressClickRef.current = true;
+      setTimeout(() => { suppressClickRef.current = false; }, 600);
+    }
+    panMovedRef.current = false;
+  }, [onZoomChange]);
+
+  // Long-press on canvas/elements opens the context menu (mobile has no right-click)
+  const clearLongPressTimer = useCallback(() => {
+    if (longPressTimerRef.current !== null) {
+      window.clearTimeout(longPressTimerRef.current);
+      longPressTimerRef.current = null;
+    }
+  }, []);
+
+  const handleTouchStartCapture = useCallback((e: React.TouchEvent) => {
+    clearLongPressTimer();
+    longPressTriggeredRef.current = false;
+
+    const target = e.target as HTMLElement;
+    const isControl = !!target.closest('button, input, textarea, select, a, [role="button"], [contenteditable]');
+    if (isControl || e.touches.length !== 1) return;
+
+    const t = e.touches[0];
+    const clientX = t.clientX;
+    const clientY = t.clientY;
+    longPressTimerRef.current = window.setTimeout(() => {
+      longPressTriggeredRef.current = true;
+      setIsPanning(false);
+      // Ignore the synthetic mouse events that follow the long-press
+      touchActiveRef.current = true;
+      suppressClickRef.current = true;
+      setTimeout(() => { suppressClickRef.current = false; }, 600);
+      setContextMenu({ x: clientX, y: clientY, isOpen: true });
+    }, 550);
+  }, [clearLongPressTimer]);
+
+  const handleTouchEndLongPress = useCallback((e: React.TouchEvent) => {
+    clearLongPressTimer();
+    // A long-press should never be interpreted as a double-tap zoom
+    if (longPressTriggeredRef.current && e.touches.length === 0) {
+      lastTapRef.current = { time: 0, x: 0, y: 0 };
+    }
+  }, [clearLongPressTimer]);
 
   // Fit to screen
   const handleFitToScreen = useCallback(() => {
@@ -250,6 +400,22 @@ export const SlideCanvas = ({
     setSelectionBox(null);
   }, [isSelecting, selectionBox, slide.elements, onSelectElements, onSelectElement]);
 
+  // Track cursor on the canvas to update the ruler markers
+  const handleCanvasHover = useCallback((e: React.MouseEvent) => {
+    if (!canvasRef.current) return;
+    const hr = hRulerRef.current?.getBoundingClientRect();
+    const vr = vRulerRef.current?.getBoundingClientRect();
+    setRulerMarker({
+      active: true,
+      hx: hr ? Math.min(hr.width, Math.max(0, e.clientX - hr.left)) : 0,
+      vy: vr ? Math.min(vr.height, Math.max(0, e.clientY - vr.top)) : 0,
+    });
+  }, []);
+
+  const clearRulerMarker = useCallback(() => {
+    setRulerMarker(prev => ({ ...prev, active: false }));
+  }, []);
+
   useEffect(() => {
     // Set canvas to actual size
     setCanvasDimensions({ 
@@ -267,6 +433,10 @@ export const SlideCanvas = ({
   };
 
   const handleCanvasClick = useCallback((e: React.MouseEvent) => {
+    if (suppressClickRef.current) {
+      suppressClickRef.current = false;
+      return;
+    }
     if (e.target === e.currentTarget || (e.target as HTMLElement).closest('[data-slide-content]')) {
       onSelectElement(null);
       if (onSelectElements) {
@@ -573,6 +743,14 @@ export const SlideCanvas = ({
       onMouseMove={(e) => { handlePanMove(e); handleSelectionMove(e); }}
       onMouseUp={() => { handlePanEnd(); handleSelectionEnd(); }}
       onMouseLeave={() => { handlePanEnd(); handleSelectionEnd(); }}
+      onTouchStart={handleTouchPanStart}
+      onTouchMove={handleTouchPanMove}
+      onTouchEnd={handleTouchPanEnd}
+      onTouchCancel={handleTouchPanEnd}
+      onTouchStartCapture={handleTouchStartCapture}
+      onTouchMoveCapture={clearLongPressTimer}
+      onTouchEndCapture={handleTouchEndLongPress}
+      onTouchCancelCapture={handleTouchEndLongPress}
       onContextMenu={handleContextMenu}
     >
       {/* Context Menu */}
@@ -595,14 +773,56 @@ export const SlideCanvas = ({
       />
 
       {/* Toolbar - Fixed in Center */}
-      <div className="relative flex items-center justify-center px-3 py-1.5 bg-background/80 backdrop-blur-sm border-b text-xs">
-        {/* Left Side - Rulers Info */}
-        <div className="absolute left-3 flex items-center gap-1">
-          {showRulers && <span className="text-muted-foreground">Rulers ON</span>}
+      <div className="relative flex items-center px-2 py-1.5 bg-background/80 backdrop-blur-sm border-b text-xs overflow-x-auto scrollbar-thin">
+        <div className="flex items-center justify-center gap-1.5 flex-nowrap w-max min-w-full mx-auto">
+        {/* Left Side - Rulers & Guides Toggles */}
+        <div className="flex items-center gap-1 flex-shrink-0">
+          {onToggleRulers && (
+            <Tooltip delayDuration={300}>
+              <TooltipTrigger asChild>
+                <button
+                  onClick={onToggleRulers}
+                  className={`p-1.5 rounded-md transition-colors ${
+                    showRulers ? 'bg-primary/10 text-primary' : 'text-muted-foreground hover:bg-muted'
+                  }`}
+                  title={language === 'ar' ? 'المسطرة' : 'Rulers'}
+                >
+                  <Ruler size={15} />
+                </button>
+              </TooltipTrigger>
+              <TooltipContent className="bg-gradient-to-r from-primary to-purple-600 text-white border-none shadow-lg px-3 py-1.5 text-xs font-medium rounded-lg">
+                <div className="flex items-center gap-1.5">
+                  <Ruler className="w-3 h-3" />
+                  {language === 'ar' ? 'إظهار/إخفاء المسطرة' : 'Show/Hide Rulers'}
+                </div>
+              </TooltipContent>
+            </Tooltip>
+          )}
+          {onToggleGuides && (
+            <Tooltip delayDuration={300}>
+              <TooltipTrigger asChild>
+                <button
+                  onClick={onToggleGuides}
+                  className={`p-1.5 rounded-md transition-colors ${
+                    showGuides ? 'bg-primary/10 text-primary' : 'text-muted-foreground hover:bg-muted'
+                  }`}
+                  title={language === 'ar' ? 'خطوط المحاذاة الذكية' : 'Smart Guides'}
+                >
+                  <Magnet size={15} />
+                </button>
+              </TooltipTrigger>
+              <TooltipContent className="bg-gradient-to-r from-primary to-purple-600 text-white border-none shadow-lg px-3 py-1.5 text-xs font-medium rounded-lg">
+                <div className="flex items-center gap-1.5">
+                  <Magnet className="w-3 h-3" />
+                  {language === 'ar' ? 'إظهار/إخفاء خطوط المحاذاة الذكية' : 'Show/Hide Smart Guides'}
+                </div>
+              </TooltipContent>
+            </Tooltip>
+          )}
         </div>
         
         {/* Center - Zoom Controls (Fixed) */}
-        <div className="flex items-center gap-1.5 bg-muted/30 rounded-lg px-2 py-1">
+        <div className="flex items-center gap-1.5 bg-muted/30 rounded-lg px-2 py-1 flex-shrink-0">
           {/* Zoom Out */}
           <Tooltip delayDuration={300}>
             <TooltipTrigger asChild>
@@ -622,7 +842,7 @@ export const SlideCanvas = ({
           </Tooltip>
           
           {/* Zoom Level */}
-          <span className="w-14 text-center font-semibold text-sm tabular-nums">{zoom}%</span>
+          <span className="w-10 sm:w-14 text-center font-semibold text-sm tabular-nums">{zoom}%</span>
           
           {/* Zoom In */}
           <Tooltip delayDuration={300}>
@@ -665,14 +885,18 @@ export const SlideCanvas = ({
           <div className="w-px h-5 bg-border mx-1" />
           
           {/* Pan Hint */}
-          <span className="text-muted-foreground flex items-center gap-1.5 px-1">
+          <span className="text-muted-foreground hidden sm:flex items-center gap-1.5 px-1">
             <Move size={14} />
             <span className="text-[11px]">Space+Drag</span>
+          </span>
+          <span className="text-muted-foreground flex sm:hidden items-center gap-1.5 px-1">
+            <Hand size={14} />
+            <span className="text-[11px]">{language === 'ar' ? 'اسحب للتحريك، قرصة للتكبير' : 'Drag to pan, pinch to zoom'}</span>
           </span>
         </div>
         
         {/* Right Side - Panel Toggle Buttons */}
-        <div className="absolute right-3 flex items-center gap-1 bg-muted/20 rounded-lg p-0.5">
+        <div className="flex items-center gap-1 bg-muted/20 rounded-lg p-0.5 flex-shrink-0">
           {/* Toggle Slides Panel */}
           {onToggleSlidesPanel && (
             <Tooltip delayDuration={300}>
@@ -730,6 +954,7 @@ export const SlideCanvas = ({
               </TooltipContent>
             </Tooltip>
           )}
+          </div>
         </div>
       </div>
 
@@ -737,24 +962,30 @@ export const SlideCanvas = ({
       <div className="flex-1 flex">
         {/* Vertical Ruler */}
         {showRulers && (
-          <div className="w-6 bg-muted/50 border-r flex flex-col text-[8px] text-muted-foreground">
+          <div ref={vRulerRef} className="relative w-6 bg-muted/50 border-r flex flex-col text-[8px] text-muted-foreground overflow-hidden">
             {Array.from({ length: Math.ceil(propCanvasHeight / 50) }).map((_, i) => (
               <div key={i} className="h-[50px] border-b border-muted-foreground/20 flex items-start justify-center pt-0.5" style={{ transform: `scale(${zoom / 100})`, transformOrigin: 'top left' }}>
                 {i * 50}
               </div>
             ))}
+            {rulerMarker.active && (
+              <div className="absolute left-0 right-0 pointer-events-none bg-primary/70" style={{ top: rulerMarker.vy, height: 1 }} />
+            )}
           </div>
         )}
 
         <div className="flex-1 flex flex-col">
           {/* Horizontal Ruler */}
           {showRulers && (
-            <div className="h-5 bg-muted/50 border-b flex text-[8px] text-muted-foreground">
+            <div ref={hRulerRef} className="relative h-5 bg-muted/50 border-b flex text-[8px] text-muted-foreground overflow-hidden">
               {Array.from({ length: Math.ceil(propCanvasWidth / 50) }).map((_, i) => (
                 <div key={i} className="w-[50px] border-r border-muted-foreground/20 flex items-center justify-start pl-0.5" style={{ transform: `scale(${zoom / 100})`, transformOrigin: 'top left' }}>
                   {i * 50}
                 </div>
               ))}
+              {rulerMarker.active && (
+                <div className="absolute top-0 bottom-0 pointer-events-none bg-primary/70" style={{ left: rulerMarker.hx, width: 1 }} />
+              )}
             </div>
           )}
 
@@ -762,6 +993,9 @@ export const SlideCanvas = ({
           <div 
             className="flex-1 flex items-center justify-center p-4 overflow-auto scrollbar-thin scrollbar-thumb-primary/40 hover:scrollbar-thumb-primary/60 scrollbar-track-muted/20"
             data-canvas-area
+            style={{ touchAction: 'none' }}
+            onMouseMove={handleCanvasHover}
+            onMouseLeave={clearRulerMarker}
           >
             <div 
               style={{ 
@@ -1311,13 +1545,48 @@ export const SlideCanvas = ({
             key={element.id}
             element={element}
             isSelected={selectedElementId === element.id || selectedElementIds.includes(element.id)}
+            isMultiSelected={selectedElementIds.includes(element.id) && selectedElementIds.length > 1}
             onSelect={() => onSelectElement(element.id)}
             onUpdate={(updates) => handleElementUpdate(element.id, updates)}
             onDelete={() => handleElementDelete(element.id)}
             canvasScale={zoom / 100}
+            canvasWidth={propCanvasWidth}
+            canvasHeight={propCanvasHeight}
+            showGuides={showGuides}
+            onGuidesChange={setGuides}
           />
         ))}
         
+        {/* Smart Alignment Guides */}
+        {showGuides && (guides.v.length > 0 || guides.h.length > 0) && (
+          <div className="absolute inset-0 pointer-events-none z-[5000]" data-guides-layer>
+            {guides.v.map((gx, i) => (
+              <div
+                key={`v-${i}`}
+                className="absolute top-0 bottom-0"
+                style={{
+                  left: gx,
+                  width: 1,
+                  background: '#ec4899',
+                  boxShadow: '0 0 2px rgba(236,72,153,0.6)',
+                }}
+              />
+            ))}
+            {guides.h.map((gy, i) => (
+              <div
+                key={`h-${i}`}
+                className="absolute left-0 right-0"
+                style={{
+                  top: gy,
+                  height: 1,
+                  background: '#ec4899',
+                  boxShadow: '0 0 2px rgba(236,72,153,0.6)',
+                }}
+              />
+            ))}
+          </div>
+        )}
+
         {/* Selection Box */}
         {isSelecting && selectionBox && (
           <div

@@ -42,7 +42,141 @@ interface DraggableElementProps {
   onUpdate: (updates: Partial<SlideElement>) => void;
   onDelete: () => void;
   canvasScale: number;
+  canvasWidth?: number;
+  canvasHeight?: number;
+  showGuides?: boolean;
+  isMultiSelected?: boolean;
+  onGuidesChange?: (guides: { v: number[]; h: number[] }) => void;
 }
+
+interface AlignmentGuides {
+  v: number[];
+  h: number[];
+}
+
+const SNAP_THRESHOLD = 6; // editor px
+
+// Normalize mouse/touch start points to client coordinates
+const getPoint = (e: React.MouseEvent | React.TouchEvent): { x: number; y: number } => {
+  if ('touches' in e && e.touches.length > 0) {
+    return { x: e.touches[0].clientX, y: e.touches[0].clientY };
+  }
+  if ('clientX' in e) {
+    return { x: e.clientX, y: e.clientY };
+  }
+  return { x: 0, y: 0 };
+};
+
+// Compute alignment guides against the canvas basics (center + start edge only)
+const computeGuides = (
+  newX: number,
+  newY: number,
+  width: number,
+  height: number,
+  canvasWidth: number,
+  canvasHeight: number,
+  isRtl: boolean
+): { x: number; y: number; guides: AlignmentGuides } => {
+  // "Beginning" of the element: right side in RTL, left side in LTR
+  const startOffset = isRtl ? width : 0;
+  const canvasStart = isRtl ? canvasWidth : 0;
+
+  const selfV = [startOffset, width / 2];
+  const selfH = [0, height / 2];
+
+  const targetsV = [canvasStart, canvasWidth / 2];
+  const targetsH = [0, canvasHeight / 2];
+
+  let bestV: { guide: number; offset: number; diff: number } | null = null;
+  for (const g of targetsV) {
+    for (const off of selfV) {
+      const diff = newX + off - g;
+      if (Math.abs(diff) <= SNAP_THRESHOLD && (!bestV || Math.abs(diff) < Math.abs(bestV.diff))) {
+        bestV = { guide: g, offset: off, diff };
+      }
+    }
+  }
+
+  let bestH: { guide: number; offset: number; diff: number } | null = null;
+  for (const g of targetsH) {
+    for (const off of selfH) {
+      const diff = newY + off - g;
+      if (Math.abs(diff) <= SNAP_THRESHOLD && (!bestH || Math.abs(diff) < Math.abs(bestH.diff))) {
+        bestH = { guide: g, offset: off, diff };
+      }
+    }
+  }
+
+  return {
+    x: bestV ? newX - bestV.diff : newX,
+    y: bestH ? newY - bestH.diff : newY,
+    guides: {
+      v: bestV ? [bestV.guide] : [],
+      h: bestH ? [bestH.guide] : [],
+    },
+  };
+};
+
+// Snap the edges being resized to the canvas basics (center + start edge only)
+const snapResize = (
+  direction: ResizeDirection,
+  x: number,
+  y: number,
+  w: number,
+  h: number,
+  canvasWidth: number,
+  canvasHeight: number,
+  isRtl: boolean
+): { x: number; y: number; w: number; h: number; guides: AlignmentGuides } => {
+  const canvasStart = isRtl ? canvasWidth : 0;
+  const targetsV = [canvasStart, canvasWidth / 2];
+  const targetsH = [0, canvasHeight / 2];
+
+  const gv: number[] = [];
+  const gh: number[] = [];
+  let outX = x;
+  let outY = y;
+  let outW = w;
+  let outH = h;
+
+  const nearest = (value: number, targets: number[]) => {
+    let best: number | null = null;
+    let bestDiff = Infinity;
+    for (const t of targets) {
+      const d = Math.abs(value - t);
+      if (d <= SNAP_THRESHOLD && d < bestDiff) {
+        bestDiff = d;
+        best = t;
+      }
+    }
+    return best;
+  };
+
+  if (direction.includes('w')) {
+    const t = nearest(outX, targetsV);
+    if (t !== null && t >= 0) { outX = t; gv.push(t); }
+  }
+  if (direction.includes('e')) {
+    const t = nearest(outX + outW, targetsV);
+    if (t !== null) {
+      const nw = t - outX;
+      if (nw >= 50) { outW = nw; gv.push(t); }
+    }
+  }
+  if (direction.includes('n')) {
+    const t = nearest(outY, targetsH);
+    if (t !== null && t >= 0) { outY = t; gh.push(t); }
+  }
+  if (direction.includes('s')) {
+    const t = nearest(outY + outH, targetsH);
+    if (t !== null) {
+      const nh = t - outY;
+      if (nh >= 30) { outH = nh; gh.push(t); }
+    }
+  }
+
+  return { x: outX, y: outY, w: outW, h: outH, guides: { v: gv, h: gh } };
+};
 
 export const DraggableElement = ({
   element,
@@ -51,8 +185,13 @@ export const DraggableElement = ({
   onUpdate,
   onDelete,
   canvasScale,
+  canvasWidth = 960,
+  canvasHeight = 540,
+  showGuides = true,
+  isMultiSelected = false,
+  onGuidesChange,
 }: DraggableElementProps) => {
-  const { language } = useLanguage();
+  const { language, direction } = useLanguage();
   const [isEditing, setIsEditing] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
   const [isResizing, setIsResizing] = useState(false);
@@ -94,7 +233,7 @@ export const DraggableElement = ({
     }
   }, [element.x, element.y, element.width, element.height, element.rotation]);
 
-  const handleMouseDown = useCallback((e: React.MouseEvent) => {
+  const handleMouseDown = useCallback((e: React.MouseEvent | React.TouchEvent) => {
     if (isEditing) return;
     e.preventDefault();
     e.stopPropagation();
@@ -108,9 +247,10 @@ export const DraggableElement = ({
     const currentX = el ? parseFloat(el.style.left) || element.x : element.x;
     const currentY = el ? parseFloat(el.style.top) || element.y : element.y;
     
+    const pt = getPoint(e);
     dragStartRef.current = {
-      x: e.clientX,
-      y: e.clientY,
+      x: pt.x,
+      y: pt.y,
       elementX: currentX,
       elementY: currentY,
     };
@@ -120,10 +260,12 @@ export const DraggableElement = ({
     document.body.style.userSelect = 'none';
   }, [element.x, element.y, onSelect, isEditing]);
 
-  const handleResizeStart = useCallback((e: React.MouseEvent, direction: ResizeDirection) => {
+  const handleResizeStart = useCallback((e: React.MouseEvent | React.TouchEvent, direction: ResizeDirection) => {
     e.preventDefault();
     e.stopPropagation();
     
+    const pt = getPoint(e);
+
     if (direction === 'rotate') {
       isRotatingRef.current = true;
       const el = elementRef.current;
@@ -131,7 +273,7 @@ export const DraggableElement = ({
         const rect = el.getBoundingClientRect();
         const centerX = rect.left + rect.width / 2;
         const centerY = rect.top + rect.height / 2;
-        const startAngle = Math.atan2(e.clientY - centerY, e.clientX - centerX) * (180 / Math.PI);
+        const startAngle = Math.atan2(pt.y - centerY, pt.x - centerX) * (180 / Math.PI);
         rotateStartRef.current = {
           angle: element.rotation || 0,
           startAngle,
@@ -143,16 +285,18 @@ export const DraggableElement = ({
       isResizingRef.current = true;
       setIsResizing(true);
       setShowDimensions(true);
-      // Store initial size for text scaling
-      initialSizeRef.current = { width: element.width, height: element.height };
     }
     
     resizeDirectionRef.current = direction;
+    // For text elements use the actual rendered size so the selection box matches what's on screen
+    const startWidth = element.type === 'text' && elementRef.current ? elementRef.current.offsetWidth : element.width;
+    const startHeight = element.type === 'text' && elementRef.current ? elementRef.current.offsetHeight : element.height;
+    initialSizeRef.current = { width: startWidth, height: startHeight };
     resizeStartRef.current = {
-      width: element.width,
-      height: element.height,
-      x: e.clientX,
-      y: e.clientY,
+      width: startWidth,
+      height: startHeight,
+      x: pt.x,
+      y: pt.y,
       elementX: element.x,
       elementY: element.y,
     };
@@ -171,6 +315,15 @@ export const DraggableElement = ({
   const setLiveScaleRef = useRef(setLiveScale);
   const elementTypeRef = useRef(element.type);
   const lastUpdateTimeRef = useRef(0);
+  const guidesEnabledRef = useRef(showGuides);
+  const multiSelectRef = useRef(isMultiSelected);
+  const canvasWidthRef = useRef(canvasWidth);
+  const canvasHeightRef = useRef(canvasHeight);
+  const elementIdRef = useRef(element.id);
+  const elementWidthRef = useRef(element.width);
+  const elementHeightRef = useRef(element.height);
+  const directionRef = useRef(direction);
+  const onGuidesChangeRef = useRef(onGuidesChange);
 
   // Keep refs updated
   useEffect(() => {
@@ -182,20 +335,42 @@ export const DraggableElement = ({
     setCurrentDimensionsRef.current = setCurrentDimensions;
     setLiveScaleRef.current = setLiveScale;
     elementTypeRef.current = element.type;
+    guidesEnabledRef.current = showGuides;
+    multiSelectRef.current = isMultiSelected;
+    canvasWidthRef.current = canvasWidth;
+    canvasHeightRef.current = canvasHeight;
+    elementIdRef.current = element.id;
+    elementWidthRef.current = element.width;
+    elementHeightRef.current = element.height;
+    directionRef.current = direction;
+    onGuidesChangeRef.current = onGuidesChange;
   });
 
   useEffect(() => {
-    const handleMouseMove = (e: MouseEvent) => {
+    const getClientPoint = (e: MouseEvent | TouchEvent) => {
+      const te = e as TouchEvent;
+      if (te.touches && te.touches.length > 0) {
+        return { x: te.touches[0].clientX, y: te.touches[0].clientY, shiftKey: false };
+      }
+      const me = e as MouseEvent;
+      return { x: me.clientX, y: me.clientY, shiftKey: me.shiftKey };
+    };
+
+    const handlePointerMove = (e: MouseEvent | TouchEvent) => {
       if (!isDraggingRef.current && !isResizingRef.current && !isRotatingRef.current) return;
+
+      // Block native scrolling while dragging/resizing/rotating on touch devices
+      e.preventDefault();
       
       const el = elementRef.current;
       if (!el) return;
 
+      const pt = getClientPoint(e);
       const scale = canvasScaleRef.current;
 
       if (isDraggingRef.current) {
-        const deltaX = (e.clientX - dragStartRef.current.x) / scale;
-        const deltaY = (e.clientY - dragStartRef.current.y) / scale;
+        const deltaX = (pt.x - dragStartRef.current.x) / scale;
+        const deltaY = (pt.y - dragStartRef.current.y) / scale;
         
         let newX = dragStartRef.current.elementX + deltaX;
         let newY = dragStartRef.current.elementY + deltaY;
@@ -203,6 +378,27 @@ export const DraggableElement = ({
         // Clamp to canvas bounds
         newX = Math.max(0, newX);
         newY = Math.max(0, newY);
+
+        // Smart guides: snap to the canvas basics (edges, center, quarters)
+        if (guidesEnabledRef.current && !multiSelectRef.current) {
+          // Use the actual rendered size so both axes snap to the real visual box
+          const mw = el.offsetWidth || elementWidthRef.current;
+          const mh = el.offsetHeight || elementHeightRef.current;
+          const snap = computeGuides(
+            newX,
+            newY,
+            mw,
+            mh,
+            canvasWidthRef.current,
+            canvasHeightRef.current,
+            directionRef.current === 'rtl'
+          );
+          newX = snap.x;
+          newY = snap.y;
+          onGuidesChangeRef.current?.(snap.guides);
+        } else {
+          onGuidesChangeRef.current?.({ v: [], h: [] });
+        }
 
         // Update DOM directly for this element
         el.style.left = `${newX}px`;
@@ -224,11 +420,11 @@ export const DraggableElement = ({
 
       if (isRotatingRef.current) {
         const { startAngle, angle, centerX, centerY } = rotateStartRef.current;
-        const currentAngle = Math.atan2(e.clientY - centerY, e.clientX - centerX) * (180 / Math.PI);
+        const currentAngle = Math.atan2(pt.y - centerY, pt.x - centerX) * (180 / Math.PI);
         let newRotation = angle + (currentAngle - startAngle);
         
         // Snap to 15 degree increments when holding Shift
-        if (e.shiftKey) {
+        if (pt.shiftKey) {
           newRotation = Math.round(newRotation / 15) * 15;
         }
         
@@ -237,8 +433,8 @@ export const DraggableElement = ({
       }
 
       if (isResizingRef.current && resizeDirectionRef.current && resizeDirectionRef.current !== 'rotate') {
-        const deltaX = (e.clientX - resizeStartRef.current.x) / scale;
-        const deltaY = (e.clientY - resizeStartRef.current.y) / scale;
+        const deltaX = (pt.x - resizeStartRef.current.x) / scale;
+        const deltaY = (pt.y - resizeStartRef.current.y) / scale;
         const { width: startWidth, height: startHeight, elementX: startX, elementY: startY } = resizeStartRef.current;
         const direction = resizeDirectionRef.current;
         
@@ -284,20 +480,55 @@ export const DraggableElement = ({
             break;
         }
 
+        // Snap the resized edges to the canvas basics on both axes (very precise)
+        if (guidesEnabledRef.current && !multiSelectRef.current) {
+          const snap = snapResize(
+            direction,
+            Math.max(0, newX),
+            Math.max(0, newY),
+            newWidth,
+            newHeight,
+            canvasWidthRef.current,
+            canvasHeightRef.current,
+            directionRef.current === 'rtl'
+          );
+          newX = snap.x;
+          newY = snap.y;
+          newWidth = snap.w;
+          newHeight = snap.h;
+          onGuidesChangeRef.current?.(snap.guides);
+        } else {
+          onGuidesChangeRef.current?.({ v: [], h: [] });
+        }
+
+        // Text boxes are auto-height: never move them vertically while resizing;
+        // the height always follows the reflowed content instead of the pointer
+        if (elementTypeRef.current === 'text') {
+          newY = startY;
+        }
+
         el.style.left = `${Math.max(0, newX)}px`;
         el.style.top = `${Math.max(0, newY)}px`;
         el.style.width = `${newWidth}px`;
-        el.style.height = `${newHeight}px`;
-        
-        currentPosRef.current = { ...currentPosRef.current, x: Math.max(0, newX), y: Math.max(0, newY), width: newWidth, height: newHeight };
-        setCurrentDimensionsRef.current({ width: Math.round(newWidth), height: Math.round(newHeight) });
-        
-        // Calculate scale for text elements
+        if (elementTypeRef.current === 'text') {
+          // Text scales its font with the width and lets the height follow the
+          // reflowed content, so the selection box always hugs the text exactly
+          el.style.height = 'auto';
+          el.style.minHeight = '0px';
+          el.style.maxWidth = 'none';
+        } else {
+          el.style.height = `${newHeight}px`;
+        }
+
+        // For text the rendered height is the content height, not the pointer position
+        const appliedHeight = elementTypeRef.current === 'text' && el ? el.offsetHeight : newHeight;
+        currentPosRef.current = { ...currentPosRef.current, x: Math.max(0, newX), y: Math.max(0, newY), width: newWidth, height: appliedHeight };
+        setCurrentDimensionsRef.current({ width: Math.round(newWidth), height: Math.round(appliedHeight) });
+
+        // Text font scales with the width ratio so the text fills the new box
         if (elementTypeRef.current === 'text') {
           const scaleX = newWidth / initialSizeRef.current.width;
-          const scaleY = newHeight / initialSizeRef.current.height;
-          const avgScale = (scaleX + scaleY) / 2;
-          setLiveScaleRef.current(avgScale);
+          setLiveScaleRef.current(scaleX);
         }
       }
     };
@@ -306,18 +537,28 @@ export const DraggableElement = ({
       if (isResizingRef.current || isRotatingRef.current) {
         const pos = currentPosRef.current;
         
-        // For text elements, update fontSize based on scale
+        // For text elements, update fontSize from the width ratio and store the
+        // real rendered height so the selection box always matches the text
         if (elementTypeRef.current === 'text' && isResizingRef.current) {
           const scaleX = pos.width / initialSizeRef.current.width;
-          const scaleY = pos.height / initialSizeRef.current.height;
-          const avgScale = (scaleX + scaleY) / 2;
-          const newFontSize = Math.max(8, Math.round(currentFontSizeRef.current * avgScale));
+          const newFontSize = Math.max(8, Math.round(currentFontSizeRef.current * scaleX));
+          
+          const el = elementRef.current;
+          let finalHeight = pos.height;
+          if (el) {
+            const textEl = el.querySelector<HTMLElement>('[data-text-content]');
+            if (textEl) textEl.style.fontSize = `${newFontSize}px`;
+            el.style.height = 'auto';
+            el.style.minHeight = '0px';
+            el.style.maxWidth = 'none';
+            finalHeight = el.offsetHeight;
+          }
           
           onUpdateRef.current({
             x: Math.round(pos.x),
             y: Math.round(pos.y),
             width: Math.round(pos.width),
-            height: Math.round(pos.height),
+            height: Math.round(finalHeight),
             rotation: Math.round(pos.rotation),
             fontSize: newFontSize,
           });
@@ -340,6 +581,9 @@ export const DraggableElement = ({
       setIsDraggingRef.current(false);
       setIsResizingRef.current(false);
       setLiveScaleRef.current(1);
+
+      // Clear any active guide lines
+      onGuidesChangeRef.current?.({ v: [], h: [] });
       
       // Hide dimensions after a short delay
       setTimeout(() => {
@@ -350,12 +594,18 @@ export const DraggableElement = ({
       document.body.style.userSelect = '';
     };
 
-    document.addEventListener('mousemove', handleMouseMove);
+    document.addEventListener('mousemove', handlePointerMove);
     document.addEventListener('mouseup', handleMouseUp);
+    document.addEventListener('touchmove', handlePointerMove, { passive: false });
+    document.addEventListener('touchend', handleMouseUp);
+    document.addEventListener('touchcancel', handleMouseUp);
 
     return () => {
-      document.removeEventListener('mousemove', handleMouseMove);
+      document.removeEventListener('mousemove', handlePointerMove);
       document.removeEventListener('mouseup', handleMouseUp);
+      document.removeEventListener('touchmove', handlePointerMove);
+      document.removeEventListener('touchend', handleMouseUp);
+      document.removeEventListener('touchcancel', handleMouseUp);
     };
   }, []);
 
@@ -537,7 +787,7 @@ export const DraggableElement = ({
             </button>
           </div>
         ) : (
-          <div className="whitespace-pre-wrap flex flex-col" style={{ ...textStyles, ...getVerticalAlignStyles(element.verticalAlign), padding: '4px 8px' }}>
+          <div data-text-content className="whitespace-pre-wrap flex flex-col" style={{ ...textStyles, ...getVerticalAlignStyles(element.verticalAlign), padding: '4px 8px' }}>
             {element.content || 'Double click to edit'}
           </div>
         );
@@ -612,9 +862,10 @@ export const DraggableElement = ({
       style={{
         left: element.x,
         top: element.y,
-        width: element.type === 'text' ? (isEditing ? 'max-content' : 'fit-content') : element.width,
-        height: element.type === 'text' ? 'fit-content' : element.height,
-        maxWidth: element.type === 'text' ? (isEditing ? 'none' : element.width) : undefined,
+        width: element.type === 'text' ? (isEditing ? 'max-content' : element.width) : element.width,
+        height: element.type === 'text' ? (isEditing ? 'auto' : 'auto') : element.height,
+        maxWidth: element.type === 'text' && isEditing ? 'none' : undefined,
+        minHeight: element.type === 'text' && !isEditing ? element.height : undefined,
         minWidth: element.type === 'text' ? 50 : undefined,
         zIndex: element.zIndex || 1,
         opacity: element.opacity !== undefined ? element.opacity : 1,
@@ -626,8 +877,10 @@ export const DraggableElement = ({
         willChange: isDragging ? 'left, top' : 'auto',
         overflow: element.type === 'text' ? 'visible' : 'hidden',
         pointerEvents: 'auto',
+        touchAction: 'none',
       }}
       onMouseDown={isEditing ? undefined : handleMouseDown}
+      onTouchStart={isEditing ? undefined : handleMouseDown}
       onDoubleClick={handleDoubleClick}
     >
       {renderContent()}
@@ -659,6 +912,7 @@ export const DraggableElement = ({
             className="absolute left-1/2 -translate-x-1/2 -top-8 w-6 h-6 bg-white border-2 border-black rounded-full cursor-grab hover:bg-black hover:text-white transition-all duration-200 flex items-center justify-center shadow-md hover:scale-110 group"
             style={{ zIndex: 1001 }}
             onMouseDown={(e) => handleResizeStart(e, 'rotate')}
+            onTouchStart={(e) => handleResizeStart(e, 'rotate')}
             title="Rotate"
           >
             <RotateCw className="w-3 h-3 text-black group-hover:text-white" />
@@ -671,35 +925,41 @@ export const DraggableElement = ({
             className="absolute -right-2 -bottom-2 w-4 h-4 bg-white border-2 border-black rounded-full cursor-se-resize hover:bg-black hover:scale-125 transition-all duration-200 shadow-sm" 
             style={{ zIndex: 1001 }}
             onMouseDown={(e) => handleResizeStart(e, 'se')} 
+            onTouchStart={(e) => handleResizeStart(e, 'se')} 
           />
           <div 
             className="absolute -left-2 -bottom-2 w-4 h-4 bg-white border-2 border-black rounded-full cursor-sw-resize hover:bg-black hover:scale-125 transition-all duration-200 shadow-sm" 
             style={{ zIndex: 1001 }}
             onMouseDown={(e) => handleResizeStart(e, 'sw')} 
+            onTouchStart={(e) => handleResizeStart(e, 'sw')} 
           />
           <div 
             className="absolute -right-2 -top-2 w-4 h-4 bg-white border-2 border-black rounded-full cursor-ne-resize hover:bg-black hover:scale-125 transition-all duration-200 shadow-sm" 
             style={{ zIndex: 1001 }}
             onMouseDown={(e) => handleResizeStart(e, 'ne')} 
+            onTouchStart={(e) => handleResizeStart(e, 'ne')} 
           />
           <div 
             className="absolute -left-2 -top-2 w-4 h-4 bg-white border-2 border-black rounded-full cursor-nw-resize hover:bg-black hover:scale-125 transition-all duration-200 shadow-sm" 
             style={{ zIndex: 1001 }}
             onMouseDown={(e) => handleResizeStart(e, 'nw')} 
+            onTouchStart={(e) => handleResizeStart(e, 'nw')} 
           />
           
           {/* Edge handles - pill shaped with hover effect */}
-          {element.width > 60 && (
+          {element.type !== 'text' && element.width > 60 && (
             <>
               <div 
                 className="absolute left-1/2 -translate-x-1/2 -top-1.5 w-8 h-3 bg-white border-2 border-black rounded-full cursor-n-resize hover:bg-black hover:scale-110 transition-all duration-200 shadow-sm" 
                 style={{ zIndex: 1001 }}
                 onMouseDown={(e) => handleResizeStart(e, 'n')} 
+                onTouchStart={(e) => handleResizeStart(e, 'n')} 
               />
               <div 
                 className="absolute left-1/2 -translate-x-1/2 -bottom-1.5 w-8 h-3 bg-white border-2 border-black rounded-full cursor-s-resize hover:bg-black hover:scale-110 transition-all duration-200 shadow-sm" 
                 style={{ zIndex: 1001 }}
                 onMouseDown={(e) => handleResizeStart(e, 's')} 
+                onTouchStart={(e) => handleResizeStart(e, 's')} 
               />
             </>
           )}
@@ -709,11 +969,13 @@ export const DraggableElement = ({
                 className="absolute top-1/2 -translate-y-1/2 -right-1.5 w-3 h-8 bg-white border-2 border-black rounded-full cursor-e-resize hover:bg-black hover:scale-110 transition-all duration-200 shadow-sm" 
                 style={{ zIndex: 1001 }}
                 onMouseDown={(e) => handleResizeStart(e, 'e')} 
+                onTouchStart={(e) => handleResizeStart(e, 'e')} 
               />
               <div 
                 className="absolute top-1/2 -translate-y-1/2 -left-1.5 w-3 h-8 bg-white border-2 border-black rounded-full cursor-w-resize hover:bg-black hover:scale-110 transition-all duration-200 shadow-sm" 
                 style={{ zIndex: 1001 }}
                 onMouseDown={(e) => handleResizeStart(e, 'w')} 
+                onTouchStart={(e) => handleResizeStart(e, 'w')} 
               />
             </>
           )}

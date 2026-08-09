@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
+import { useIsMobile } from '@/hooks/use-mobile';
 import { SlidePanel } from '@/components/editor/SlidePanel';
 import { SlideCanvas } from '@/components/editor/SlideCanvas';
 import { PropertiesPanel } from '@/components/editor/PropertiesPanel';
@@ -46,7 +47,9 @@ const getDefaultTemplateSlide = (): SlideTemplate => {
 
 export const Editor = () => {
   const [searchParams] = useSearchParams();
-  const { language } = useLanguage();
+  const { language, direction } = useLanguage();
+  const isMobile = useIsMobile();
+  const isRtl = direction === 'rtl';
   const { user } = useAuth();
   const navigate = useNavigate();
   const { trackAction, trackSlideChange, trackTemplateUsage } = useEditorTracking();
@@ -77,11 +80,23 @@ export const Editor = () => {
   
   // Panel visibility states
   const [showSlidesPanel, setShowSlidesPanel] = useState(() => {
+    const isMobile = typeof window !== 'undefined' && window.innerWidth < 768;
     const saved = localStorage.getItem('editor-slides-panel-visible');
-    return saved !== null ? saved === 'true' : true;
+    if (saved !== null) return saved === 'true';
+    return !isMobile;
   });
   const [showPropertiesPanel, setShowPropertiesPanel] = useState(() => {
+    const isMobile = typeof window !== 'undefined' && window.innerWidth < 768;
     const saved = localStorage.getItem('editor-properties-panel-visible');
+    if (saved !== null) return saved === 'true';
+    return !isMobile;
+  });
+  const [showRulers, setShowRulers] = useState(() => {
+    const saved = localStorage.getItem('editor-rulers-visible');
+    return saved !== null ? saved === 'true' : true;
+  });
+  const [showGuides, setShowGuides] = useState(() => {
+    const saved = localStorage.getItem('editor-guides-enabled');
     return saved !== null ? saved === 'true' : true;
   });
 
@@ -98,6 +113,32 @@ export const Editor = () => {
   useEffect(() => {
     localStorage.setItem('editor-properties-panel-visible', String(showPropertiesPanel));
   }, [showPropertiesPanel]);
+
+  useEffect(() => {
+    localStorage.setItem('editor-rulers-visible', String(showRulers));
+  }, [showRulers]);
+
+  useEffect(() => {
+    localStorage.setItem('editor-guides-enabled', String(showGuides));
+  }, [showGuides]);
+
+  // Close side panels by default on mobile so the canvas uses the full width
+  useEffect(() => {
+    if (isMobile) {
+      setShowSlidesPanel(false);
+      setShowPropertiesPanel(false);
+    }
+  }, [isMobile]);
+
+  // On mobile screens the side panels are floating overlays - start them closed
+  // so the canvas gets the full screen width.
+  useEffect(() => {
+    if (isMobile) {
+      setShowSlidesPanel(false);
+      setShowPropertiesPanel(false);
+      setShowRulers(false);
+    }
+  }, [isMobile]);
 
   // Generate a unique key for this presentation
   const autosaveKey = useMemo(() => {
@@ -981,13 +1022,13 @@ export const Editor = () => {
     
     try {
       if (format === 'pptx') {
-        await exportToPptx(slides, presentationTitle);
+        await exportToPptx(slides, presentationTitle, canvasWidth, canvasHeight);
         trackAction('export_pptx', autosaveKey, presentationTitle);
       } else if (format === 'pdf') {
-        await exportToPdf(slides, presentationTitle);
+        await exportToPdf(slides, presentationTitle, canvasWidth, canvasHeight);
         trackAction('export_pdf', autosaveKey, presentationTitle);
       } else if (format === 'images') {
-        await exportToImages(slides, presentationTitle);
+        await exportToImages(slides, presentationTitle, canvasWidth, canvasHeight);
         trackAction('export_images', autosaveKey, presentationTitle);
       }
       toast.dismiss();
@@ -1096,11 +1137,16 @@ export const Editor = () => {
   }, [updateSlide]);
 
   // Import PPTX handler
-  const handleImportPPTX = useCallback((importedSlides: SlideTemplate[], title: string) => {
+  const handleImportPPTX = useCallback((importedSlides: SlideTemplate[], title: string, size?: { width: number; height: number }) => {
     setSlides(importedSlides);
     setPresentationTitle(title);
     setActiveSlideIndex(0);
     setSelectedElementId(null);
+    // Match the canvas to the imported file's real size so everything stays in place
+    if (size && size.width > 0 && size.height > 0) {
+      setCanvasWidth(size.width);
+      setCanvasHeight(size.height);
+    }
     toast.success(`Imported ${importedSlides.length} slides!`);
   }, []);
 
@@ -1168,12 +1214,14 @@ export const Editor = () => {
         onClose={() => setIsPresentationMode(false)}
         speakerNotes={speakerNotes}
         slideTransitions={slideTransitions}
+        canvasWidth={canvasWidth}
+        canvasHeight={canvasHeight}
       />
     );
   }
 
   return (
-    <div className="h-screen flex flex-col bg-background overflow-hidden">
+    <div className="h-dvh flex flex-col bg-background overflow-hidden">
       {/* Version History Dialog */}
       <VersionHistory
         presentationId={autosaveKey}
@@ -1198,6 +1246,8 @@ export const Editor = () => {
         onSlideChange={setActiveSlideIndex}
         notes={speakerNotes}
         slideTransitions={slideTransitions}
+        canvasWidth={canvasWidth}
+        canvasHeight={canvasHeight}
         onStartPresentation={() => {
           setIsPreviewMode(false);
           setIsPresentationMode(true);
@@ -1234,78 +1284,159 @@ export const Editor = () => {
         onAlignSelected={handleAlignSelected}
         onDistributeSelected={handleDistributeSelected}
         onPasteStyle={handlePasteStyle}
-        canvasWidth={960}
-        canvasHeight={540}
+        canvasWidth={canvasWidth}
+        canvasHeight={canvasHeight}
         onApplyLayout={handleApplyLayout}
         onImportPPTX={handleImportPPTX}
       />
 
       {/* Main Editor Area */}
       <div className="flex-1 flex overflow-hidden relative">
+        {/* Mobile backdrop - closes any open drawer panel */}
+        {isMobile && (showSlidesPanel || showPropertiesPanel) && (
+          <div
+            className="absolute inset-0 z-30 bg-black/40 backdrop-blur-[2px]"
+            onClick={() => {
+              setShowSlidesPanel(false);
+              setShowPropertiesPanel(false);
+            }}
+          />
+        )}
+
         {/* Slides Panel */}
-        <div 
-          className={`relative transition-all duration-300 ease-in-out overflow-visible ${
-            showSlidesPanel ? 'w-50' : 'w-0'
-          }`}
-        >
-          <div className={`h-full overflow-auto ${showSlidesPanel ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}>
-            <SlidePanel
-              slides={slides}
-              activeSlideIndex={activeSlideIndex}
-              onSlideSelect={handleSlideSelect}
-              onAddSlide={handleAddSlide}
-              onDeleteSlide={handleDeleteSlide}
-              onDuplicateSlide={(index) => {
-                const slide = slides[index];
-                const newSlide = {
-                  ...slide,
-                  id: `slide-${Date.now()}`,
-                  elements: slide.elements?.map(el => ({
-                    ...el,
-                    id: `element-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`,
-                  })),
-                };
-                const newSlides = [...slides];
-                newSlides.splice(index + 1, 0, newSlide);
-                setSlides(newSlides);
-                setActiveSlideIndex(index + 1);
-                
-                // Assign random transition to the duplicated slide
-                const randomTransition = getRandomTransition();
-                setSlideTransitions(prev => ({
-                  ...prev,
-                  [newSlide.id]: randomTransition,
-                }));
-                
-                toast.success(language === 'ar' ? 'تم تكرار الشريحة!' : 'Slide duplicated!');
-              }}
-              onMoveSlide={(fromIndex, toIndex) => {
-                const newSlides = [...slides];
-                const [movedSlide] = newSlides.splice(fromIndex, 1);
-                newSlides.splice(toIndex, 0, movedSlide);
-                setSlides(newSlides);
-                setActiveSlideIndex(toIndex);
-              }}
-              slideTransitions={slideTransitions}
-              onTransitionChange={(slideId, transition) => {
-                setSlideTransitions(prev => ({
-                  ...prev,
-                  [slideId]: transition,
-                }));
-              }}
-              activeSlide={activeSlide}
-              selectedElementId={selectedElementId}
-              onSelectElement={setSelectedElementId}
-              onUpdateElement={handleUpdateElementById}
-              onDeleteElement={handleDeleteElement}
-              onDuplicateElement={handleDuplicateElement}
-              onReorderElements={(elements) => updateSlide({ elements })}
-            />
+        {isMobile ? (
+          <div
+            className={`absolute inset-y-0 z-40 w-64 max-w-[85vw] bg-background shadow-2xl border-r border-border/60 transition-transform duration-300 ${
+              isRtl ? 'right-0' : 'left-0'
+            } ${showSlidesPanel ? 'translate-x-0' : isRtl ? 'translate-x-full' : '-translate-x-full'}`}
+          >
+            <div className="h-full overflow-auto">
+              <SlidePanel
+                slides={slides}
+                activeSlideIndex={activeSlideIndex}
+                onSlideSelect={(index) => {
+                  handleSlideSelect(index);
+                  setShowSlidesPanel(false);
+                }}
+                canvasWidth={canvasWidth}
+                canvasHeight={canvasHeight}
+                onAddSlide={handleAddSlide}
+                onDeleteSlide={handleDeleteSlide}
+                onDuplicateSlide={(index) => {
+                  const slide = slides[index];
+                  const newSlide = {
+                    ...slide,
+                    id: `slide-${Date.now()}`,
+                    elements: slide.elements?.map(el => ({
+                      ...el,
+                      id: `element-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`,
+                    })),
+                  };
+                  const newSlides = [...slides];
+                  newSlides.splice(index + 1, 0, newSlide);
+                  setSlides(newSlides);
+                  setActiveSlideIndex(index + 1);
+
+                  // Assign random transition to the duplicated slide
+                  const randomTransition = getRandomTransition();
+                  setSlideTransitions(prev => ({
+                    ...prev,
+                    [newSlide.id]: randomTransition,
+                  }));
+
+                  toast.success(language === 'ar' ? 'تم تكرار الشريحة!' : 'Slide duplicated!');
+                }}
+                onMoveSlide={(fromIndex, toIndex) => {
+                  const newSlides = [...slides];
+                  const [movedSlide] = newSlides.splice(fromIndex, 1);
+                  newSlides.splice(toIndex, 0, movedSlide);
+                  setSlides(newSlides);
+                  setActiveSlideIndex(toIndex);
+                }}
+                slideTransitions={slideTransitions}
+                onTransitionChange={(slideId, transition) => {
+                  setSlideTransitions(prev => ({
+                    ...prev,
+                    [slideId]: transition,
+                  }));
+                }}
+                activeSlide={activeSlide}
+                selectedElementId={selectedElementId}
+                onSelectElement={setSelectedElementId}
+                onUpdateElement={handleUpdateElementById}
+                onDeleteElement={handleDeleteElement}
+                onDuplicateElement={handleDuplicateElement}
+                onReorderElements={(elements) => updateSlide({ elements })}
+              />
+            </div>
           </div>
-        </div>
+        ) : (
+          <div
+            className={`relative transition-all duration-300 ease-in-out overflow-visible ${
+              showSlidesPanel ? 'w-52' : 'w-0'
+            }`}
+          >
+            <div className={`h-full overflow-auto ${showSlidesPanel ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}>
+              <SlidePanel
+                slides={slides}
+                activeSlideIndex={activeSlideIndex}
+                onSlideSelect={handleSlideSelect}
+                canvasWidth={canvasWidth}
+                canvasHeight={canvasHeight}
+                onAddSlide={handleAddSlide}
+                onDeleteSlide={handleDeleteSlide}
+                onDuplicateSlide={(index) => {
+                  const slide = slides[index];
+                  const newSlide = {
+                    ...slide,
+                    id: `slide-${Date.now()}`,
+                    elements: slide.elements?.map(el => ({
+                      ...el,
+                      id: `element-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`,
+                    })),
+                  };
+                  const newSlides = [...slides];
+                  newSlides.splice(index + 1, 0, newSlide);
+                  setSlides(newSlides);
+                  setActiveSlideIndex(index + 1);
+
+                  // Assign random transition to the duplicated slide
+                  const randomTransition = getRandomTransition();
+                  setSlideTransitions(prev => ({
+                    ...prev,
+                    [newSlide.id]: randomTransition,
+                  }));
+
+                  toast.success(language === 'ar' ? 'تم تكرار الشريحة!' : 'Slide duplicated!');
+                }}
+                onMoveSlide={(fromIndex, toIndex) => {
+                  const newSlides = [...slides];
+                  const [movedSlide] = newSlides.splice(fromIndex, 1);
+                  newSlides.splice(toIndex, 0, movedSlide);
+                  setSlides(newSlides);
+                  setActiveSlideIndex(toIndex);
+                }}
+                slideTransitions={slideTransitions}
+                onTransitionChange={(slideId, transition) => {
+                  setSlideTransitions(prev => ({
+                    ...prev,
+                    [slideId]: transition,
+                  }));
+                }}
+                activeSlide={activeSlide}
+                selectedElementId={selectedElementId}
+                onSelectElement={setSelectedElementId}
+                onUpdateElement={handleUpdateElementById}
+                onDeleteElement={handleDeleteElement}
+                onDuplicateElement={handleDuplicateElement}
+                onReorderElements={(elements) => updateSlide({ elements })}
+              />
+            </div>
+          </div>
+        )}
 
         {/* Canvas */}
-        <div className="flex-1 overflow-hidden">
+        <div className="flex-1 overflow-hidden min-w-0">
           <SlideCanvas
             slide={activeSlide}
             onTitleChange={(title) => updateSlide({ title })}
@@ -1320,6 +1451,10 @@ export const Editor = () => {
             onZoomChange={setZoom}
             canvasWidth={canvasWidth}
             canvasHeight={canvasHeight}
+            showRulers={showRulers}
+            showGuides={showGuides}
+            onToggleRulers={() => setShowRulers(v => !v)}
+            onToggleGuides={() => setShowGuides(v => !v)}
             showSlidesPanel={showSlidesPanel}
             showPropertiesPanel={showPropertiesPanel}
             onToggleSlidesPanel={() => setShowSlidesPanel(!showSlidesPanel)}
@@ -1328,44 +1463,85 @@ export const Editor = () => {
         </div>
 
         {/* Properties Panel */}
-        <div 
-          className={`relative transition-all duration-300 ease-in-out overflow-visible ${
-            showPropertiesPanel ? 'w-64' : 'w-0'
-          }`}
-        >
-          <div className={`h-full overflow-auto ${showPropertiesPanel ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}>
-            <PropertiesPanel
-              slide={activeSlide}
-              selectedElement={selectedElement}
-              onBackgroundColorChange={(backgroundColor) => updateSlide({ backgroundColor })}
-              onTextColorChange={(textColor) => updateSlide({ textColor })}
-              onAddElement={handleAddElement}
-              onAddElements={handleAddElements}
-              onUpdateElement={handleUpdateElement}
-              onDeleteElement={handleDeleteElement}
-              onSlideTypeChange={handleSlideTypeChange}
-              slideIndex={activeSlideIndex}
-              totalSlides={slides.length}
-              canvasWidth={canvasWidth}
-              canvasHeight={canvasHeight}
-              zoom={zoom}
-              onZoomChange={setZoom}
-              onCanvasSizeChange={handleCanvasSizeChange}
-              onDuplicateSlide={handleDuplicateSlide}
-              onDeleteSlide={handleDeleteCurrentSlide}
-              onMoveSlide={handleMoveSlide}
-              elements={activeSlide.elements || []}
-              onUpdateElementById={handleUpdateElementById}
-              slideTransition={slideTransitions[activeSlide.id]}
-              onSlideTransitionChange={(transition) => {
-                setSlideTransitions(prev => ({
-                  ...prev,
-                  [activeSlide.id]: transition,
-                }));
-              }}
-            />
+        {isMobile ? (
+          <div
+            className={`absolute inset-y-0 z-40 w-72 max-w-[90vw] bg-background shadow-2xl border-l border-border/60 transition-transform duration-300 ${
+              isRtl ? 'left-0' : 'right-0'
+            } ${showPropertiesPanel ? 'translate-x-0' : isRtl ? '-translate-x-full' : 'translate-x-full'}`}
+          >
+            <div className="h-full overflow-auto">
+              <PropertiesPanel
+                slide={activeSlide}
+                selectedElement={selectedElement}
+                onBackgroundColorChange={(backgroundColor) => updateSlide({ backgroundColor })}
+                onTextColorChange={(textColor) => updateSlide({ textColor })}
+                onAddElement={handleAddElement}
+                onAddElements={handleAddElements}
+                onUpdateElement={handleUpdateElement}
+                onDeleteElement={handleDeleteElement}
+                onSlideTypeChange={handleSlideTypeChange}
+                slideIndex={activeSlideIndex}
+                totalSlides={slides.length}
+                canvasWidth={canvasWidth}
+                canvasHeight={canvasHeight}
+                zoom={zoom}
+                onZoomChange={setZoom}
+                onCanvasSizeChange={handleCanvasSizeChange}
+                onDuplicateSlide={handleDuplicateSlide}
+                onDeleteSlide={handleDeleteCurrentSlide}
+                onMoveSlide={handleMoveSlide}
+                elements={activeSlide.elements || []}
+                onUpdateElementById={handleUpdateElementById}
+                slideTransition={slideTransitions[activeSlide.id]}
+                onSlideTransitionChange={(transition) => {
+                  setSlideTransitions(prev => ({
+                    ...prev,
+                    [activeSlide.id]: transition,
+                  }));
+                }}
+              />
+            </div>
           </div>
-        </div>
+        ) : (
+          <div
+            className={`relative transition-all duration-300 ease-in-out overflow-visible ${
+              showPropertiesPanel ? 'w-64' : 'w-0'
+            }`}
+          >
+            <div className={`h-full overflow-auto ${showPropertiesPanel ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}>
+              <PropertiesPanel
+                slide={activeSlide}
+                selectedElement={selectedElement}
+                onBackgroundColorChange={(backgroundColor) => updateSlide({ backgroundColor })}
+                onTextColorChange={(textColor) => updateSlide({ textColor })}
+                onAddElement={handleAddElement}
+                onAddElements={handleAddElements}
+                onUpdateElement={handleUpdateElement}
+                onDeleteElement={handleDeleteElement}
+                onSlideTypeChange={handleSlideTypeChange}
+                slideIndex={activeSlideIndex}
+                totalSlides={slides.length}
+                canvasWidth={canvasWidth}
+                canvasHeight={canvasHeight}
+                zoom={zoom}
+                onZoomChange={setZoom}
+                onCanvasSizeChange={handleCanvasSizeChange}
+                onDuplicateSlide={handleDuplicateSlide}
+                onDeleteSlide={handleDeleteCurrentSlide}
+                onMoveSlide={handleMoveSlide}
+                elements={activeSlide.elements || []}
+                onUpdateElementById={handleUpdateElementById}
+                slideTransition={slideTransitions[activeSlide.id]}
+                onSlideTransitionChange={(transition) => {
+                  setSlideTransitions(prev => ({
+                    ...prev,
+                    [activeSlide.id]: transition,
+                  }));
+                }}
+              />
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Speaker Notes - Bottom Bar */}

@@ -58,30 +58,30 @@ const AdminDashboard = () => {
   return (
     <div className="min-h-screen bg-slate-900 text-white">
       {/* Header */}
-      <div className="bg-slate-800 border-b border-slate-700 px-6 py-4">
-        <div className="flex items-center justify-between max-w-7xl mx-auto">
-          <div className="flex items-center gap-4">
-            <Button variant="ghost" size="icon" onClick={handleGoBack} className="text-slate-400 hover:text-white">
+      <div className="bg-slate-800 border-b border-slate-700 px-4 sm:px-6 py-4">
+        <div className="flex items-center justify-between flex-wrap gap-2 sm:gap-4 max-w-7xl mx-auto">
+          <div className="flex items-center gap-4 min-w-0">
+            <Button variant="ghost" size="icon" onClick={handleGoBack} className="text-slate-400 hover:text-white flex-shrink-0">
               <ArrowLeft className="w-5 h-5" />
             </Button>
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-yellow-500 to-orange-600 flex items-center justify-center">
+            <div className="flex items-center gap-3 min-w-0">
+              <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-yellow-500 to-orange-600 flex items-center justify-center flex-shrink-0">
                 <Crown className="w-5 h-5 text-white" />
               </div>
-              <div>
-                <h1 className="text-lg font-bold">{language === 'ar' ? 'لوحة تحكم المدير' : 'Admin Dashboard'}</h1>
-                <p className="text-xs text-slate-400">{language === 'ar' ? `مرحباً ${user.username}` : `Welcome ${user.username}`}</p>
+              <div className="min-w-0">
+                <h1 className="text-base sm:text-lg font-bold truncate">{language === 'ar' ? 'لوحة تحكم المدير' : 'Admin Dashboard'}</h1>
+                <p className="text-xs text-slate-400 hidden sm:block truncate">{language === 'ar' ? `مرحباً ${user.username}` : `Welcome ${user.username}`}</p>
               </div>
             </div>
           </div>
-          <Button variant="ghost" size="sm" onClick={handleLogout} className="text-slate-400 hover:text-white">
+          <Button variant="ghost" size="sm" onClick={handleLogout} className="text-slate-400 hover:text-white flex-shrink-0">
             <LogOut className="w-4 h-4 mr-2" />
             {language === 'ar' ? 'خروج' : 'Logout'}
           </Button>
         </div>
       </div>
 
-      <div className="max-w-7xl mx-auto px-6 py-8">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 py-8">
         {/* Stats */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
           <div className="bg-slate-800 border border-slate-700 rounded-xl p-6">

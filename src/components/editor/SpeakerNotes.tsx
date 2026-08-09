@@ -151,7 +151,7 @@ export const SpeakerNotes = ({
         className={`${isExpanded ? 'h-[80vh]' : 'h-[40vh]'} transition-all duration-300`}
       >
         <SheetHeader className="pb-4">
-          <div className="flex items-center justify-between">
+          <div className="flex items-center justify-between flex-wrap gap-3">
             <SheetTitle className="flex items-center gap-2">
               <StickyNote className="w-5 h-5" />
               {language === 'ar' ? 'ملاحظات المتحدث' : 'Speaker Notes'}
@@ -170,7 +170,7 @@ export const SpeakerNotes = ({
                     <Button
                       variant="ghost"
                       size="icon"
-                      className="h-8 w-8"
+                      className="h-9 w-9"
                       onClick={() => onNavigate?.('prev')}
                       disabled={slideIndex === 0}
                     >
@@ -190,7 +190,7 @@ export const SpeakerNotes = ({
                     <Button
                       variant="ghost"
                       size="icon"
-                      className="h-8 w-8"
+                      className="h-9 w-9"
                       onClick={() => onNavigate?.('next')}
                       disabled={slideIndex === totalSlides - 1}
                     >
@@ -214,7 +214,7 @@ export const SpeakerNotes = ({
                   <Button
                     variant="ghost"
                     size="icon"
-                    className="h-8 w-8"
+                    className="h-9 w-9"
                     onClick={handleCopy}
                     disabled={!currentNotes}
                   >
@@ -234,7 +234,7 @@ export const SpeakerNotes = ({
                   <Button
                     variant="ghost"
                     size="icon"
-                    className="h-8 w-8"
+                    className="h-9 w-9"
                     onClick={handleClear}
                     disabled={!currentNotes}
                   >
@@ -254,7 +254,7 @@ export const SpeakerNotes = ({
                   <Button
                     variant="ghost"
                     size="icon"
-                    className="h-8 w-8"
+                    className="h-9 w-9"
                     onClick={handleExportAllNotes}
                   >
                     <Download className="w-4 h-4" />
@@ -275,7 +275,7 @@ export const SpeakerNotes = ({
                   <Button
                     variant="ghost"
                     size="icon"
-                    className="h-8 w-8"
+                    className="h-9 w-9"
                     onClick={() => setIsExpanded(!isExpanded)}
                   >
                     {isExpanded ? (
@@ -298,9 +298,9 @@ export const SpeakerNotes = ({
           </div>
         </SheetHeader>
 
-        <div className="flex flex-col h-[calc(100%-4rem)] gap-4">
+        <div className="flex flex-col h-[calc(100%-4rem)] gap-4 overflow-y-auto scrollbar-thin">
           {/* Stats Bar */}
-          <div className="flex items-center gap-4 text-sm text-muted-foreground">
+          <div className="flex items-center gap-4 text-sm text-muted-foreground flex-wrap">
             <div className="flex items-center gap-1.5">
               <Type className="w-4 h-4" />
               <span>
@@ -319,7 +319,7 @@ export const SpeakerNotes = ({
                 ~{readingTime} {language === 'ar' ? 'دقيقة' : 'min'}
               </span>
             </div>
-            <div className="flex items-center gap-1.5">
+            <div className="flex items-center gap-1.5 hidden sm:flex">
               <Volume2 className="w-4 h-4" />
               <span>
                 {language === 'ar' ? 'وقت الإلقاء التقريبي' : 'Est. speaking time'}

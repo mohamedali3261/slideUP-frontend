@@ -41,7 +41,7 @@ export const Navbar = () => {
   return (
     <nav className="fixed top-0 left-0 right-0 z-50 bg-background/70 backdrop-blur-xl border-b border-border/50">
       <div className="container mx-auto px-3 sm:px-4">
-        <div className="flex items-center justify-between h-16 sm:h-18">
+        <div className="flex items-center justify-between h-16 sm:h-20">
           {/* Logo */}
           <Link to="/" className="flex items-center gap-2 sm:gap-3 group">
             <img 
@@ -157,6 +157,7 @@ export const Navbar = () => {
                 <LanguageSwitcher variant="editor" />
                 {user ? (
                   <>
+                    <NotificationBell />
                     <SupportDialog />
                     <Button size="sm" variant="outline" className="flex-1 text-xs sm:text-sm" onClick={handleLogout}>
                       <LogOut className="w-3 h-3 sm:w-4 sm:h-4 mr-1 sm:mr-2" />

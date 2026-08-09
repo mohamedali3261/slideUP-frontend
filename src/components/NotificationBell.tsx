@@ -327,7 +327,7 @@ export const NotificationBell = () => {
           </div>
         </TooltipContent>
       </Tooltip>
-      <PopoverContent className="w-96 p-0 bg-card/95 backdrop-blur-xl border-border/50 rounded-2xl shadow-2xl" align="end">
+      <PopoverContent className="w-96 max-w-[calc(100vw-1.5rem)] p-0 bg-card/95 backdrop-blur-xl border-border/50 rounded-2xl shadow-2xl" align="end">
         {/* Header */}
         <div className="p-4 border-b border-border/50 bg-gradient-to-r from-primary/5 to-purple-500/5">
           <div className="flex items-center justify-between">

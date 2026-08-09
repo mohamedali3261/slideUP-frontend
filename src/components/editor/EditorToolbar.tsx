@@ -24,6 +24,7 @@ import {
   Save,
   Loader2,
   Plus,
+  MoreHorizontal,
 } from 'lucide-react';
 import {
   DropdownMenu,
@@ -96,7 +97,7 @@ interface EditorToolbarProps {
   canvasWidth?: number;
   canvasHeight?: number;
   onApplyLayout?: (elements: SlideElement[]) => void;
-  onImportPPTX?: (slides: SlideTemplate[], title: string) => void;
+  onImportPPTX?: (slides: SlideTemplate[], title: string, size: { width: number; height: number }) => void;
 }
 
 export const EditorToolbar = ({
@@ -135,8 +136,224 @@ export const EditorToolbar = ({
 }: EditorToolbarProps) => {
   const { t, direction, language } = useLanguage();
 
+  const handleGoTo = async (path: string) => {
+    if (onSave) {
+      await onSave();
+    }
+    window.location.href = path;
+  };
+
   return (
-    <div className="h-10 bg-gradient-to-r from-card via-card to-card/95 border-b border-border/50 flex items-center justify-between px-2 backdrop-blur-sm">
+    <div className="bg-gradient-to-r from-card via-card to-card/95 border-b border-border/50 backdrop-blur-sm">
+      {/* Mobile Toolbar */}
+      <div className="sm:hidden">
+        {/* Row 1: Logo + Title + More */}
+        <div className="flex items-center gap-1.5 px-2 h-11">
+          <Link to="/" className="flex items-center group flex-shrink-0" title={language === 'ar' ? 'الصفحة الرئيسية' : 'Home'}>
+            <img 
+              src={logo} 
+              alt="SlideUP" 
+              className="h-7 w-auto group-hover:scale-105 transition-transform"
+            />
+          </Link>
+
+          <div className="w-px h-5 bg-border/50 flex-shrink-0" />
+
+          <input
+            type="text"
+            value={presentationTitle}
+            onChange={(e) => onTitleChange(e.target.value)}
+            className="text-xs font-semibold bg-transparent border-none outline-none focus:ring-1 focus:ring-primary/30 rounded px-1.5 py-1 text-foreground flex-1 min-w-0 truncate hover:bg-muted/50 transition-colors"
+          />
+
+          {/* More Menu */}
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="ghost" size="icon" className="h-8 w-8 rounded-lg flex-shrink-0" title={language === 'ar' ? 'المزيد' : 'More'}>
+                <MoreHorizontal className="w-5 h-5" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-56 rounded-xl">
+              {onCreateNew && (
+                <DropdownMenuItem onClick={onCreateNew} className="text-xs rounded cursor-pointer">
+                  <Plus className="w-4 h-4 mr-2" />
+                  {language === 'ar' ? 'عرض جديد' : 'New Presentation'}
+                </DropdownMenuItem>
+              )}
+              {onShowVersionHistory && (
+                <DropdownMenuItem onClick={onShowVersionHistory} className="text-xs rounded cursor-pointer">
+                  <Clock className="w-4 h-4 mr-2" />
+                  {language === 'ar' ? 'سجل الإصدارات' : 'Version History'}
+                </DropdownMenuItem>
+              )}
+              {onImportPPTX && (
+                <DropdownMenuItem onSelect={(e) => e.preventDefault()} className="text-xs rounded cursor-pointer p-0">
+                  <div className="w-full px-2 py-1.5">
+                    <ImportPPTX onImport={onImportPPTX} />
+                  </div>
+                </DropdownMenuItem>
+              )}
+              <KeyboardShortcutsHelp
+                trigger={
+                  <DropdownMenuItem className="text-xs rounded cursor-pointer">
+                    <Keyboard className="w-4 h-4 mr-2" />
+                    {language === 'ar' ? 'اختصارات لوحة المفاتيح' : 'Keyboard Shortcuts'}
+                  </DropdownMenuItem>
+                }
+              />
+              <DropdownMenuSeparator />
+              <DropdownMenuItem onClick={() => handleGoTo('/dashboard')} className="text-xs rounded cursor-pointer">
+                <LayoutGrid className="w-4 h-4 mr-2" />
+                {language === 'ar' ? 'عروضي التقديمية' : 'My Presentations'}
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => handleGoTo('/templates')} className="text-xs rounded cursor-pointer">
+                <Copy className="w-4 h-4 mr-2" />
+                {language === 'ar' ? 'القوالب' : 'Templates'}
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => handleGoTo('/')} className="text-xs rounded cursor-pointer">
+                <Presentation className="w-4 h-4 mr-2" />
+                {language === 'ar' ? 'الصفحة الرئيسية' : 'Home'}
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </div>
+
+        {/* Row 2: Tools (horizontally scrollable) */}
+        <div className="flex items-center gap-0.5 px-1.5 pb-1.5 overflow-x-auto scrollbar-none">
+          {/* Undo/Redo */}
+          <Tooltip delayDuration={300}>
+            <TooltipTrigger asChild>
+              <Button variant="ghost" size="icon" className="h-8 w-8 rounded-lg hover:bg-background flex-shrink-0" onClick={onUndo} disabled={!onUndo}>
+                <Undo2 className="w-4 h-4" />
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent className="bg-gradient-to-r from-primary to-purple-600 text-white border-none shadow-lg px-3 py-1.5 text-xs font-medium rounded-lg">
+              {language === 'ar' ? 'تراجع (Ctrl+Z)' : 'Undo (Ctrl+Z)'}
+            </TooltipContent>
+          </Tooltip>
+          <Tooltip delayDuration={300}>
+            <TooltipTrigger asChild>
+              <Button variant="ghost" size="icon" className="h-8 w-8 rounded-lg hover:bg-background flex-shrink-0" onClick={onRedo} disabled={!onRedo}>
+                <Redo2 className="w-4 h-4" />
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent className="bg-gradient-to-r from-primary to-purple-600 text-white border-none shadow-lg px-3 py-1.5 text-xs font-medium rounded-lg">
+              {language === 'ar' ? 'إعادة (Ctrl+Y)' : 'Redo (Ctrl+Y)'}
+            </TooltipContent>
+          </Tooltip>
+
+          <div className="w-px h-5 bg-border/50 mx-1 flex-shrink-0" />
+
+          {/* Edit Menu */}
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="ghost" size="sm" className="h-8 text-[10px] px-2 gap-1 rounded-lg hover:bg-background flex-shrink-0">
+                <LayoutGrid className="w-4 h-4" />
+                {language === 'ar' ? 'تعديل' : 'Edit'}
+                <ChevronDown className="w-3 h-3 opacity-50" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="start" className="w-52 rounded-xl">
+              {onPasteStyle && (
+                <div className="px-2 py-1">
+                  <CopyPasteStyles
+                    selectedElement={elements.find(el => el.id === selectedElementId) || null}
+                    onPasteStyle={onPasteStyle}
+                  />
+                </div>
+              )}
+              {onApplyLayout && (
+                <div className="px-2 py-1">
+                  <SmartLayouts
+                    elements={elements}
+                    selectedElementIds={selectedElementIds}
+                    canvasWidth={canvasWidth}
+                    canvasHeight={canvasHeight}
+                    onApplyLayout={onApplyLayout}
+                  />
+                </div>
+              )}
+              {(selectedElementIds.length > 0 || selectedElementId) && onDeleteSelected && onDuplicateSelected && onAlignSelected && onDistributeSelected && onGroup && onUngroup && (
+                <div className="px-2 py-1">
+                  <GroupingControls
+                    selectedElementIds={selectedElementIds.length > 0 ? selectedElementIds : (selectedElementId ? [selectedElementId] : [])}
+                    elements={elements}
+                    groups={groups}
+                    onGroup={onGroup}
+                    onUngroup={onUngroup}
+                    onDeleteSelected={onDeleteSelected}
+                    onDuplicateSelected={onDuplicateSelected}
+                    onAlignSelected={onAlignSelected}
+                    onDistributeSelected={onDistributeSelected}
+                  />
+                </div>
+              )}
+            </DropdownMenuContent>
+          </DropdownMenu>
+
+          <div className="w-px h-5 bg-border/50 mx-1 flex-shrink-0" />
+
+          {/* Preview */}
+          <Tooltip delayDuration={300}>
+            <TooltipTrigger asChild>
+              <Button variant="ghost" size="icon" className="h-8 w-8 rounded-lg hover:bg-muted/50 flex-shrink-0" onClick={onPreview}>
+                <Play className="w-4 h-4" />
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent className="bg-gradient-to-r from-primary to-purple-600 text-white border-none shadow-lg px-3 py-1.5 text-xs font-medium rounded-lg">
+              {language === 'ar' ? 'معاينة (F5)' : 'Preview (F5)'}
+            </TooltipContent>
+          </Tooltip>
+
+          {/* Export */}
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button size="sm" className="h-8 text-[10px] px-2.5 gap-1 rounded-lg bg-gradient-to-r from-primary to-purple-600 hover:from-primary/90 hover:to-purple-600/90 shadow-md shadow-primary/20 flex-shrink-0">
+                <Download className="w-3.5 h-3.5" />
+                {language === 'ar' ? 'تصدير' : 'Export'}
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="start" className="rounded-lg">
+              <DropdownMenuItem onClick={() => onExport('pptx')} className="text-xs rounded">
+                <FileDown className="w-3 h-3 mr-2" />PowerPoint
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => onExport('pdf')} className="text-xs rounded">
+                <FileDown className="w-3 h-3 mr-2" />PDF
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => onExport('images')} className="text-xs rounded">
+                <Image className="w-3 h-3 mr-2" />
+                {language === 'ar' ? 'صور' : 'Images'}
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+
+          <div className="w-px h-5 bg-border/50 mx-1 flex-shrink-0" />
+
+          {/* Save */}
+          {onSave && autosave && (
+            <Tooltip delayDuration={300}>
+              <TooltipTrigger asChild>
+                <Button variant="ghost" size="icon" className="h-8 w-8 rounded-lg hover:bg-muted/50 flex-shrink-0" onClick={onSave} disabled={autosave.isSaving}>
+                  {autosave.isSaving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent className="bg-gradient-to-r from-primary to-purple-600 text-white border-none shadow-lg px-3 py-1.5 text-xs font-medium rounded-lg">
+                {language === 'ar' ? 'حفظ (Ctrl+S)' : 'Save (Ctrl+S)'}
+              </TooltipContent>
+            </Tooltip>
+          )}
+
+          <div className="w-px h-5 bg-border/50 mx-1 flex-shrink-0" />
+
+          <NotificationBell />
+          <SupportDialog />
+          <ThemeToggle variant="editor" />
+          <LanguageSwitcher variant="editor" />
+        </div>
+      </div>
+
+      {/* Desktop Toolbar */}
+      <div className="hidden sm:flex items-center justify-between px-2 h-10">
       {/* Left Section */}
       <div className="flex items-center gap-2">
         {/* Logo & Home Button */}
@@ -458,6 +675,7 @@ export const EditorToolbar = ({
         </DropdownMenu>
 
         <div className="w-px h-5 bg-border/50" />
+      </div>
       </div>
     </div>
   );
