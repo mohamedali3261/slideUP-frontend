@@ -401,7 +401,9 @@ export const PreviewMode = ({
     // Calculate scale to fit container while maintaining aspect ratio
     const scaleX = containerSize.width / previewCanvasWidth;
     const scaleY = containerSize.height / previewCanvasHeight;
-    const scale = Math.min(scaleX, scaleY) * 0.86;
+    // Use higher scale for mobile (0.95) and lower for desktop (0.86)
+    const isMobileContainer = containerSize.width < 768;
+    const scale = Math.min(scaleX, scaleY) * (isMobileContainer ? 0.95 : 0.86);
     
     // Check if slide has visible content
     const hasElements = slide.elements && slide.elements.length > 0;

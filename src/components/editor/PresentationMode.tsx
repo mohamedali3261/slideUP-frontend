@@ -108,7 +108,9 @@ export const PresentationMode = ({
         
         const scaleX = containerWidth / slideWidth;
         const scaleY = containerHeight / slideHeight;
-        const scale = Math.min(scaleX, scaleY) * 0.95; // 95% to leave some margin
+        // Use higher scale for mobile (0.98) and lower for desktop (0.95)
+        const isMobile = containerWidth < 768;
+        const scale = Math.min(scaleX, scaleY) * (isMobile ? 0.98 : 0.95);
         
         setSlideScale(scale);
       }
