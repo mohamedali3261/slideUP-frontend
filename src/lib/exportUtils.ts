@@ -14,6 +14,30 @@ const getFontWeight = (weight?: string): boolean => {
   return weight === 'bold' || weight === 'semibold' || weight === 'extrabold';
 };
 
+/** Extract a valid 6-char hex string (no #) from any CSS color value */
+const extractHexColor = (color?: string): string => {
+  if (!color) return 'FFFFFF';
+  // Already a plain hex (with or without #)
+  const hex6 = color.match(/^#?([a-fA-F0-9]{6})$/);
+  if (hex6) return hex6[1].toUpperCase();
+  const hex3 = color.match(/^#([a-fA-F0-9]{3})$/);
+  if (hex3) {
+    const [r, g, b] = hex3[1].split('');
+    return (r+r+g+g+b+b).toUpperCase();
+  }
+  // gradient or other — pick first hex colour found
+  const anyHex = color.match(/#([a-fA-F0-9]{6})/);
+  if (anyHex) return anyHex[1].toUpperCase();
+  // rgb(r,g,b)
+  const rgb = color.match(/rgb\s*\(\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)/);
+  if (rgb) {
+    return [rgb[1], rgb[2], rgb[3]]
+      .map(n => parseInt(n).toString(16).padStart(2, '0'))
+      .join('').toUpperCase();
+  }
+  return 'FFFFFF';
+};
+
 const TRANSITION_XML_BY_TYPE: Record<string, string> = {
   fade: '<p:fade/>',
   dissolve: '<p:dissolve/>',
@@ -65,7 +89,9 @@ const applySlideTransitionsToPptx = async (
   slides: SlideTemplate[],
   transitions: Record<string, { type: string; duration?: number }>
 ): Promise<Blob> => {
-  const zip = await JSZip.loadAsync(blob);
+  // Load ZIP from ArrayBuffer for reliable cross-browser parsing
+  const arrayBuffer = await blob.arrayBuffer();
+  const zip = await JSZip.loadAsync(arrayBuffer);
   const p14Ns = 'xmlns:p14="http://schemas.microsoft.com/office/powerpoint/2010/main"';
   const p15Ns = 'xmlns:p15="http://schemas.microsoft.com/office/powerpoint/2012/main"';
 
@@ -83,25 +109,29 @@ const applySlideTransitionsToPptx = async (
 
     let nextXml = xml;
     // Add required namespaces if missing
-    if (xml.indexOf('xmlns:p14=') === -1) {
+    if (!nextXml.includes('xmlns:p14=')) {
       nextXml = nextXml.replace('<p:sld ', `<p:sld ${p14Ns} `);
     }
-    if (transitionXml.indexOf('p15:') !== -1 && xml.indexOf('xmlns:p15=') === -1) {
+    if (transitionXml.includes('p15:') && !nextXml.includes('xmlns:p15=')) {
       nextXml = nextXml.replace('<p:sld ', `<p:sld ${p15Ns} `);
     }
-    // Remove any existing transition before inserting the new one
-    nextXml = nextXml.replace(/<p:transition[^>]*>[\s\S]*?<\/p:transition>/g, '');
+    // Remove any pre-existing transition tags
+    nextXml = nextXml.replace(/<p:transition[\s\S]*?<\/p:transition>/g, '');
     nextXml = nextXml.replace(/<p:transition[^/]*\/>/g, '');
+    // Insert before closing slide tag
     nextXml = nextXml.replace('</p:sld>', `${transitionXml}</p:sld>`);
     zip.file(slidePath, nextXml);
   }
 
-  // Use STORE (no compression) for XML files to preserve Office compatibility,
-  // and keep original compression for binary parts (images, etc.)
-  return zip.generateAsync({
-    type: 'blob',
+  // STORE (no recompression) preserves Office Open XML integrity
+  const resultBuffer = await zip.generateAsync({
+    type: 'arraybuffer',
     mimeType: 'application/vnd.openxmlformats-officedocument.presentationml.presentation',
     compression: 'STORE',
+  });
+
+  return new Blob([resultBuffer], {
+    type: 'application/vnd.openxmlformats-officedocument.presentationml.presentation',
   });
 };
 
@@ -129,17 +159,18 @@ export const exportToPptx = async (
   
   for (const slide of slides) {
     const pptSlide = pptx.addSlide();
-    
-    if (slide.backgroundColor.startsWith('linear-gradient')) {
-      const colorMatch = slide.backgroundColor.match(/#[a-fA-F0-9]{6}/);
-      pptSlide.background = { color: colorMatch ? colorMatch[0].replace('#', '') : 'FFFFFF' };
-    } else {
-      pptSlide.background = { color: slide.backgroundColor.replace('#', '') };
-    }
+
+    // Safely extract a hex color for the slide background
+    const bgHex = extractHexColor(slide.backgroundColor);
+    pptSlide.background = { color: bgHex };
 
     if (slide.elements && slide.elements.length > 0) {
       for (const element of slide.elements) {
-        await addElementToPptx(pptSlide, pptx, element, toInchX, toInchY, toInchW, toInchH);
+        try {
+          await addElementToPptx(pptSlide, pptx, element, toInchX, toInchY, toInchW, toInchH);
+        } catch (elemErr) {
+          console.warn('Skipping element due to error:', element.type, element.id, elemErr);
+        }
       }
     } else {
       renderDefaultSlideContent(pptSlide, pptx, slide);
@@ -152,8 +183,11 @@ export const exportToPptx = async (
     );
 
   if (hasTransitions) {
-    // pptxgenjs v4: use write() with 'blob' outputType
-    const blob = await (pptx as any).write({ outputType: 'blob' }) as Blob;
+    // Use 'arraybuffer' output — works correctly in both browser and Node
+    const ab = await (pptx as any).write({ outputType: 'arraybuffer' }) as ArrayBuffer;
+    const blob = new Blob([ab], {
+      type: 'application/vnd.openxmlformats-officedocument.presentationml.presentation',
+    });
     const finalBlob = await applySlideTransitionsToPptx(blob, slides, slideTransitions!);
     downloadBlob(finalBlob, `${title}.pptx`);
   } else {
@@ -176,14 +210,7 @@ const addElementToPptx = async (pptSlide: any, pptx: any, element: SlideElement,
   const rotate = element.rotation || 0;
 
   // Helper: strip # and handle gradients by extracting dominant colour
-  const toHex = (c?: string): string => {
-    if (!c) return 'FFFFFF';
-    if (c.includes('gradient')) {
-      const m = c.match(/#([a-fA-F0-9]{6})/);
-      return m ? m[1] : 'FFFFFF';
-    }
-    return c.replace('#', '');
-  };
+  const toHex = (c?: string): string => extractHexColor(c);
 
   switch (element.type) {
     case 'text': {
