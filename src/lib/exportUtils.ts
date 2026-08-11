@@ -82,20 +82,26 @@ const applySlideTransitionsToPptx = async (
     if (!transitionXml) continue;
 
     let nextXml = xml;
+    // Add required namespaces if missing
     if (xml.indexOf('xmlns:p14=') === -1) {
       nextXml = nextXml.replace('<p:sld ', `<p:sld ${p14Ns} `);
     }
     if (transitionXml.indexOf('p15:') !== -1 && xml.indexOf('xmlns:p15=') === -1) {
       nextXml = nextXml.replace('<p:sld ', `<p:sld ${p15Ns} `);
     }
+    // Remove any existing transition before inserting the new one
+    nextXml = nextXml.replace(/<p:transition[^>]*>[\s\S]*?<\/p:transition>/g, '');
+    nextXml = nextXml.replace(/<p:transition[^/]*\/>/g, '');
     nextXml = nextXml.replace('</p:sld>', `${transitionXml}</p:sld>`);
     zip.file(slidePath, nextXml);
   }
 
+  // Use STORE (no compression) for XML files to preserve Office compatibility,
+  // and keep original compression for binary parts (images, etc.)
   return zip.generateAsync({
     type: 'blob',
     mimeType: 'application/vnd.openxmlformats-officedocument.presentationml.presentation',
-    compression: 'DEFLATE',
+    compression: 'STORE',
   });
 };
 
@@ -146,8 +152,8 @@ export const exportToPptx = async (
     );
 
   if (hasTransitions) {
-    const pptxAny = pptx as unknown as { exportPresentation: (props: Record<string, unknown>) => Promise<Blob> };
-    const blob = await pptxAny.exportPresentation({ outputType: 'blob', compression: false });
+    // pptxgenjs v4: use write() with 'blob' outputType
+    const blob = await (pptx as any).write({ outputType: 'blob' }) as Blob;
     const finalBlob = await applySlideTransitionsToPptx(blob, slides, slideTransitions!);
     downloadBlob(finalBlob, `${title}.pptx`);
   } else {
