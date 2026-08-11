@@ -1560,49 +1560,47 @@ export const Editor = () => {
               <div className="w-px h-5 bg-border/50 mx-1" />
               <button
                 onClick={() => setShowPropertiesPanel(!showPropertiesPanel)}
-                className={`flex flex-col items-center gap-0.5 p-1.5 rounded-lg transition-all min-w-[40px] ${
+                className={`flex flex-col items-center gap-0 p-1 rounded-lg transition-all min-w-[32px] ${
                   showPropertiesPanel
                     ? 'bg-primary text-primary-foreground shadow-md'
                     : 'hover:bg-muted/80'
                 }`}
                 title={language === 'ar' ? 'الخصائص' : 'Properties'}
               >
-                <PanelRight className="w-3.5 h-3.5" />
-                <span className="text-[8px]">{language === 'ar' ? 'خصائص' : 'Props'}</span>
+                <PanelRight className="w-3 h-3" />
               </button>
               <button
                 onClick={() => setShowSlidesPanel(!showSlidesPanel)}
-                className={`flex flex-col items-center gap-0.5 p-1.5 rounded-lg transition-all min-w-[40px] ${
+                className={`flex flex-col items-center gap-0 p-1 rounded-lg transition-all min-w-[32px] ${
                   showSlidesPanel
                     ? 'bg-primary text-primary-foreground shadow-md'
                     : 'hover:bg-muted/80'
                 }`}
                 title={language === 'ar' ? 'الشرائح' : 'Slides'}
               >
-                <PanelLeft className="w-3.5 h-3.5" />
-                <span className="text-[8px]">{language === 'ar' ? 'شرائح' : 'Slides'}</span>
+                <PanelLeft className="w-3 h-3" />
               </button>
             </div>
-            <div className="flex items-center gap-1">
+            <div className="flex items-center gap-0.5">
               <button
-                onClick={() => handleSlideSelect(Math.max(0, activeSlideIndex - 1))}
+                onClick={() => setActiveSlideIndex(Math.max(0, activeSlideIndex - 1))}
                 disabled={activeSlideIndex === 0}
-                className="p-1.5 rounded-lg hover:bg-muted/80 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+                className="p-1 rounded-lg hover:bg-muted/80 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
               >
-                <ChevronLeft className="w-4 h-4" />
+                <ChevronLeft className="w-3.5 h-3.5" />
               </button>
-              <div className="text-xs font-medium px-1">
-                {activeSlideIndex + 1}/{slides.length}
+              <div className="text-[10px] font-medium min-w-[50px] text-center">
+                {activeSlideIndex + 1} / {slides.length}
               </div>
               <button
-                onClick={() => handleSlideSelect(Math.min(slides.length - 1, activeSlideIndex + 1))}
+                onClick={() => setActiveSlideIndex(Math.min(slides.length - 1, activeSlideIndex + 1))}
                 disabled={activeSlideIndex === slides.length - 1}
-                className="p-1.5 rounded-lg hover:bg-muted/80 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+                className="p-1 rounded-lg hover:bg-muted/80 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
               >
-                <ChevronRight className="w-4 h-4" />
+                <ChevronRight className="w-3.5 h-3.5" />
               </button>
             </div>
-            <div className="flex items-center gap-1">
+            <div className="flex items-center gap-0.5">
               <button
                 onClick={() => handleAddElement({
                   type: 'text',
@@ -1616,11 +1614,10 @@ export const Editor = () => {
                   textAlign: 'left',
                   color: activeSlide.textColor,
                 })}
-                className="flex flex-col items-center gap-0.5 p-1.5 rounded-lg hover:bg-background transition-colors min-w-[40px]"
+                className="flex flex-col items-center gap-0 p-1 rounded-lg hover:bg-background transition-colors min-w-[32px]"
                 title={language === 'ar' ? 'إضافة نص' : 'Add Text'}
               >
-                <Type className="w-3.5 h-3.5" />
-                <span className="text-[8px]">{language === 'ar' ? 'نص' : 'Text'}</span>
+                <Type className="w-3 h-3" />
               </button>
               <button
                 onClick={() => handleAddElement({
@@ -1633,11 +1630,10 @@ export const Editor = () => {
                   backgroundColor: '#3b82f6',
                   borderRadius: 8,
                 })}
-                className="flex flex-col items-center gap-0.5 p-1.5 rounded-lg hover:bg-background transition-colors min-w-[40px]"
+                className="flex flex-col items-center gap-0 p-1 rounded-lg hover:bg-background transition-colors min-w-[32px]"
                 title={language === 'ar' ? 'إضافة مستطيل' : 'Add Rectangle'}
               >
-                <Square className="w-3.5 h-3.5" />
-                <span className="text-[8px]">{language === 'ar' ? 'شكل' : 'Shape'}</span>
+                <Square className="w-3 h-3" />
               </button>
               <button
                 onClick={() => handleAddElement({
@@ -1650,11 +1646,10 @@ export const Editor = () => {
                   backgroundColor: '#3b82f6',
                   borderRadius: 50,
                 })}
-                className="flex flex-col items-center gap-0.5 p-1.5 rounded-lg hover:bg-background transition-colors min-w-[40px]"
+                className="flex flex-col items-center gap-0 p-1 rounded-lg hover:bg-background transition-colors min-w-[32px]"
                 title={language === 'ar' ? 'إضافة دائرة' : 'Add Circle'}
               >
-                <Circle className="w-3.5 h-3.5" />
-                <span className="text-[8px]">{language === 'ar' ? 'دائرة' : 'Circle'}</span>
+                <Circle className="w-3 h-3" />
               </button>
             </div>
           </div>

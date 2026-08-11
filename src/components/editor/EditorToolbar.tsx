@@ -148,29 +148,30 @@ export const EditorToolbar = ({
       {/* Mobile Toolbar */}
       <div className="sm:hidden">
         {/* Row 1: Logo + Title + More */}
-        <div className="flex items-center gap-1.5 px-2 h-11">
-          <Link to="/" className="flex items-center group flex-shrink-0" title={language === 'ar' ? 'الصفحة الرئيسية' : 'Home'}>
-            <img 
-              src={logo} 
-              alt="SlideUP" 
-              className="h-7 w-auto group-hover:scale-105 transition-transform"
-            />
-          </Link>
-
-          <div className="w-px h-5 bg-border/50 flex-shrink-0" />
-
-          <input
-            type="text"
-            value={presentationTitle}
-            onChange={(e) => onTitleChange(e.target.value)}
-            className="text-xs font-semibold bg-transparent border-none outline-none focus:ring-1 focus:ring-primary/30 rounded px-1.5 py-1 text-foreground flex-1 min-w-0 truncate hover:bg-muted/50 transition-colors"
+        <div className="flex items-center gap-1 px-1.5 h-9">
+          {/* Logo */}
+          <img
+            src={logo}
+            alt="SlideUP Logo"
+            className="h-6 w-auto flex-shrink-0"
           />
+
+          {/* Title */}
+          <div className="flex-1 min-w-0">
+            <input
+              type="text"
+              value={presentationTitle}
+              onChange={(e) => onTitleChange(e.target.value)}
+              className="w-full bg-transparent border-none text-xs font-medium focus:outline-none focus:ring-0 truncate"
+              placeholder={language === 'ar' ? 'عرض تقديمي بدون عنوان' : 'Untitled Presentation'}
+            />
+          </div>
 
           {/* More Menu */}
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button variant="ghost" size="icon" className="h-8 w-8 rounded-lg flex-shrink-0" title={language === 'ar' ? 'المزيد' : 'More'}>
-                <MoreHorizontal className="w-5 h-5" />
+              <Button variant="ghost" size="icon" className="h-7 w-7 rounded-lg flex-shrink-0" title={language === 'ar' ? 'المزيد' : 'More'}>
+                <MoreHorizontal className="w-4 h-4" />
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="w-56 rounded-xl">
@@ -219,7 +220,7 @@ export const EditorToolbar = ({
         </div>
 
         {/* Row 2: Tools (horizontally scrollable) */}
-        <div className="flex items-center gap-0.5 px-1.5 pb-1.5 overflow-x-auto scrollbar-none">
+        <div className="flex items-center gap-0.5 px-1 pb-1 overflow-x-auto scrollbar-none">
           {/* Undo/Redo */}
           <Tooltip delayDuration={300}>
             <TooltipTrigger asChild>

@@ -106,25 +106,26 @@ export const SlideCanvas = ({
         const container = containerRef.current;
         const containerWidth = container.clientWidth;
         const containerHeight = container.clientHeight;
-        
+
         // Skip if container is too small (not yet rendered)
         if (containerWidth < 100 || containerHeight < 100) return;
-        
-        // Calculate the scale to fit the canvas in the container with some padding
-        const padding = 60; // padding for better visibility
+
+        // Use full available space with minimal padding
+        const padding = 20; // minimal padding
         const availableWidth = containerWidth - padding;
         const availableHeight = containerHeight - padding;
-        
+
+        // Calculate the scale to fit the canvas in the container
         const scaleX = availableWidth / propCanvasWidth;
         const scaleY = availableHeight / propCanvasHeight;
-        const scale = Math.min(scaleX, scaleY, 1); // Don't scale up beyond 100%
-        
+        const scale = Math.min(scaleX, scaleY); // Allow scaling up to fill space
+
         // Calculate the zoom percentage
         const autoZoom = Math.max(25, Math.floor(scale * 100));
-        
+
         // Update zoom
         onZoomChange(autoZoom);
-        
+
         // Reset pan offset
         setPanOffset({ x: 0, y: 0 });
       }
@@ -735,8 +736,8 @@ export const SlideCanvas = ({
   }, [handleCopy, handleCut, handlePaste, handleDuplicate, handleSelectAll, handleDeleteSelected]);
 
   return (
-    <div 
-      ref={containerRef} 
+    <div
+      ref={containerRef}
       className="flex-1 flex flex-col bg-muted/30 overflow-hidden"
       style={{ cursor: isSpacePressed ? 'grab' : isPanning ? 'grabbing' : 'default' }}
       onMouseDown={handlePanStart}
@@ -773,107 +774,107 @@ export const SlideCanvas = ({
       />
 
       {/* Toolbar - Fixed in Center */}
-      <div className="relative flex items-center px-2 py-1.5 bg-background/80 backdrop-blur-sm border-b text-xs overflow-x-auto scrollbar-thin">
-        <div className="flex items-center justify-center gap-1.5 flex-nowrap w-max min-w-full mx-auto">
+      <div className="relative flex items-center px-1.5 py-1 bg-background/80 backdrop-blur-sm border-b text-[10px] overflow-x-auto scrollbar-thin">
+        <div className="flex items-center justify-center gap-1 flex-nowrap w-max min-w-full mx-auto">
         {/* Left Side - Guides Toggles */}
-        <div className="flex items-center gap-1 flex-shrink-0">
+        <div className="flex items-center gap-0.5 flex-shrink-0">
           {onToggleGuides && (
             <Tooltip delayDuration={300}>
               <TooltipTrigger asChild>
                 <button
                   onClick={onToggleGuides}
-                  className={`p-1.5 rounded-md transition-colors ${
+                  className={`p-1 rounded-md transition-colors ${
                     showGuides ? 'bg-primary/10 text-primary' : 'text-muted-foreground hover:bg-muted'
                   }`}
                   title={language === 'ar' ? 'خطوط المحاذاة الذكية' : 'Smart Guides'}
                 >
-                  <Magnet size={15} />
+                  <Magnet size={13} />
                 </button>
               </TooltipTrigger>
-              <TooltipContent className="bg-gradient-to-r from-primary to-purple-600 text-white border-none shadow-lg px-3 py-1.5 text-xs font-medium rounded-lg">
-                <div className="flex items-center gap-1.5">
-                  <Magnet className="w-3 h-3" />
+              <TooltipContent className="bg-gradient-to-r from-primary to-purple-600 text-white border-none shadow-lg px-2 py-1 text-[10px] font-medium rounded-lg">
+                <div className="flex items-center gap-1">
+                  <Magnet className="w-2.5 h-2.5" />
                   {language === 'ar' ? 'إظهار/إخفاء خطوط المحاذاة الذكية' : 'Show/Hide Smart Guides'}
                 </div>
               </TooltipContent>
             </Tooltip>
           )}
         </div>
-        
+
         {/* Center - Zoom Controls (Fixed) */}
-        <div className="flex items-center gap-1.5 bg-muted/30 rounded-lg px-2 py-1 flex-shrink-0">
+        <div className="flex items-center gap-1 bg-muted/30 rounded-lg px-1.5 py-0.5 flex-shrink-0">
           {/* Zoom Out */}
           <Tooltip delayDuration={300}>
             <TooltipTrigger asChild>
               <button
                 onClick={() => onZoomChange?.(Math.max(25, zoom - 10))}
-                className="p-1.5 hover:bg-background rounded-md transition-colors"
+                className="p-1 hover:bg-background rounded-md transition-colors"
               >
-                <ZoomOut size={16} className="text-muted-foreground hover:text-foreground" />
+                <ZoomOut size={14} className="text-muted-foreground hover:text-foreground" />
               </button>
             </TooltipTrigger>
-            <TooltipContent className="bg-gradient-to-r from-primary to-purple-600 text-white border-none shadow-lg px-3 py-1.5 text-xs font-medium rounded-lg">
-              <div className="flex items-center gap-1.5">
-                <ZoomOut className="w-3 h-3" />
+            <TooltipContent className="bg-gradient-to-r from-primary to-purple-600 text-white border-none shadow-lg px-2 py-1 text-[10px] font-medium rounded-lg">
+              <div className="flex items-center gap-1">
+                <ZoomOut className="w-2.5 h-2.5" />
                 Zoom Out (Scroll Down)
               </div>
             </TooltipContent>
           </Tooltip>
-          
+
           {/* Zoom Level */}
-          <span className="w-10 sm:w-14 text-center font-semibold text-sm tabular-nums">{zoom}%</span>
-          
+          <span className="w-8 sm:w-12 text-center font-semibold text-[10px] sm:text-xs tabular-nums">{zoom}%</span>
+
           {/* Zoom In */}
           <Tooltip delayDuration={300}>
             <TooltipTrigger asChild>
               <button
                 onClick={() => onZoomChange?.(Math.min(200, zoom + 10))}
-                className="p-1.5 hover:bg-background rounded-md transition-colors"
+                className="p-1 hover:bg-background rounded-md transition-colors"
               >
-                <ZoomIn size={16} className="text-muted-foreground hover:text-foreground" />
+                <ZoomIn size={14} className="text-muted-foreground hover:text-foreground" />
               </button>
             </TooltipTrigger>
-            <TooltipContent className="bg-gradient-to-r from-primary to-purple-600 text-white border-none shadow-lg px-3 py-1.5 text-xs font-medium rounded-lg">
-              <div className="flex items-center gap-1.5">
-                <ZoomIn className="w-3 h-3" />
+            <TooltipContent className="bg-gradient-to-r from-primary to-purple-600 text-white border-none shadow-lg px-2 py-1 text-[10px] font-medium rounded-lg">
+              <div className="flex items-center gap-1">
+                <ZoomIn className="w-2.5 h-2.5" />
                 Zoom In (Scroll Up)
               </div>
             </TooltipContent>
           </Tooltip>
-          
-          <div className="w-px h-5 bg-border mx-1" />
-          
+
+          <div className="w-px h-4 bg-border mx-0.5" />
+
           {/* Fit to Screen */}
           <Tooltip delayDuration={300}>
             <TooltipTrigger asChild>
               <button
                 onClick={handleFitToScreen}
-                className="p-1.5 hover:bg-background rounded-md transition-colors"
+                className="p-1 hover:bg-background rounded-md transition-colors"
               >
-                <Maximize2 size={16} className="text-muted-foreground hover:text-foreground" />
+                <Maximize2 size={14} className="text-muted-foreground hover:text-foreground" />
               </button>
             </TooltipTrigger>
-            <TooltipContent className="bg-gradient-to-r from-primary to-purple-600 text-white border-none shadow-lg px-3 py-1.5 text-xs font-medium rounded-lg">
-              <div className="flex items-center gap-1.5">
-                <Maximize2 className="w-3 h-3" />
+            <TooltipContent className="bg-gradient-to-r from-primary to-purple-600 text-white border-none shadow-lg px-2 py-1 text-[10px] font-medium rounded-lg">
+              <div className="flex items-center gap-1">
+                <Maximize2 className="w-2.5 h-2.5" />
                 Fit to Screen (Reset)
               </div>
             </TooltipContent>
           </Tooltip>
-          
-          <div className="w-px h-5 bg-border mx-1" />
-          
+
+          <div className="w-px h-4 bg-border mx-0.5" />
+
         </div>
-        
+
         {/* Right Side - Panel Toggle Buttons - Hidden on mobile */}
-        <div className="hidden sm:flex items-center gap-1 bg-muted/20 rounded-lg p-0.5 flex-shrink-0">
+        <div className="hidden sm:flex items-center gap-0.5 bg-muted/20 rounded-lg p-0.5 flex-shrink-0">
           {/* Toggle Slides Panel */}
           {onToggleSlidesPanel && (
             <Tooltip delayDuration={300}>
               <TooltipTrigger asChild>
                 <button
                   onClick={onToggleSlidesPanel}
-                  className={`p-1.5 rounded hover:bg-background transition-colors ${
+                  className={`p-1 rounded hover:bg-background transition-colors ${
                     showSlidesPanel ? 'bg-primary/10 text-primary' : 'text-muted-foreground'
                   }`}
                   title={showSlidesPanel
@@ -881,12 +882,12 @@ export const SlideCanvas = ({
                     : (language === 'ar' ? 'إظهار الشرائح' : 'Show Slides')
                   }
                 >
-                  <PanelLeft size={16} />
+                  <PanelLeft size={14} />
                 </button>
               </TooltipTrigger>
-              <TooltipContent className="bg-gradient-to-r from-primary to-purple-600 text-white border-none shadow-lg px-3 py-1.5 text-xs font-medium rounded-lg">
-                <div className="flex items-center gap-1.5">
-                  <PanelLeft className="w-3 h-3" />
+              <TooltipContent className="bg-gradient-to-r from-primary to-purple-600 text-white border-none shadow-lg px-2 py-1 text-[10px] font-medium rounded-lg">
+                <div className="flex items-center gap-1">
+                  <PanelLeft className="w-2.5 h-2.5" />
                   {showSlidesPanel
                     ? (language === 'ar' ? 'إخفاء الشرائح' : 'Hide Slides')
                     : (language === 'ar' ? 'إظهار الشرائح' : 'Show Slides')
@@ -961,7 +962,7 @@ export const SlideCanvas = ({
 
           {/* Main Canvas Container */}
           <div 
-            className="flex-1 flex items-center justify-center p-4 overflow-auto scrollbar-thin scrollbar-thumb-primary/40 hover:scrollbar-thumb-primary/60 scrollbar-track-muted/20"
+            className="flex-1 flex items-start justify-center p-4 overflow-auto scrollbar-thin scrollbar-thumb-primary/40 hover:scrollbar-thumb-primary/60 scrollbar-track-muted/20"
             data-canvas-area
             style={{ touchAction: 'none' }}
             onMouseMove={handleCanvasHover}
