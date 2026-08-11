@@ -87,7 +87,12 @@ export const PresentationMode = ({
   const [currentElementIndex, setCurrentElementIndex] = useState(0);
   const [isElementPlaying, setIsElementPlaying] = useState(false);
   const [elementPlaySpeed, setElementPlaySpeed] = useState(1000);
-  const [slideScale, setSlideScale] = useState(1);
+  const [slideScale, setSlideScale] = useState(() => {
+    // Compute an initial scale immediately (before first paint)
+    const scaleX = window.innerWidth / 960;
+    const scaleY = (window.innerHeight - 80) / 540;
+    return Math.min(scaleX, scaleY) * 0.97;
+  });
   const autoPlayRef = useRef<NodeJS.Timeout | null>(null);
   const elementPlayRef = useRef<NodeJS.Timeout | null>(null);
   const slideContainerRef = useRef<HTMLDivElement>(null);
@@ -97,28 +102,39 @@ export const PresentationMode = ({
   const currentNotes = speakerNotes[currentSlide?.id]?.content || '';
   const currentTransition = slideTransitions[currentSlide?.id] || DEFAULT_TRANSITION;
 
-  // Calculate scale to fit screen while maintaining aspect ratio
+  // Calculate scale using ResizeObserver on the slide container
   useEffect(() => {
-    const updateScale = () => {
-      if (slideContainerRef.current) {
-        const containerWidth = window.innerWidth;
-        const containerHeight = window.innerHeight - 80; // Reserve space for toolbar
-        const slideWidth = canvasWidth;
-        const slideHeight = canvasHeight;
-        
-        const scaleX = containerWidth / slideWidth;
-        const scaleY = containerHeight / slideHeight;
-        // Use higher scale for mobile to ensure full visibility
-        const isMobile = containerWidth < 768;
-        const scale = Math.min(scaleX, scaleY) * (isMobile ? 0.98 : 0.95);
-        
-        setSlideScale(scale);
-      }
+    const computeScale = (width: number, height: number) => {
+      if (width <= 0 || height <= 0) return;
+      const scaleX = width / canvasWidth;
+      const scaleY = height / canvasHeight;
+      setSlideScale(Math.min(scaleX, scaleY) * 0.97);
     };
-    
-    updateScale();
-    window.addEventListener('resize', updateScale);
-    return () => window.removeEventListener('resize', updateScale);
+
+    const el = slideContainerRef.current;
+    if (el) {
+      const rect = el.getBoundingClientRect();
+      computeScale(rect.width, rect.height);
+
+      const ro = new ResizeObserver((entries) => {
+        for (const entry of entries) {
+          const { width, height } = entry.contentRect;
+          computeScale(width, height);
+        }
+      });
+      ro.observe(el);
+      return () => ro.disconnect();
+    } else {
+      // Fallback using window
+      const update = () => {
+        const scaleX = window.innerWidth / canvasWidth;
+        const scaleY = window.innerHeight / canvasHeight;
+        setSlideScale(Math.min(scaleX, scaleY) * 0.97);
+      };
+      update();
+      window.addEventListener('resize', update);
+      return () => window.removeEventListener('resize', update);
+    }
   }, [canvasWidth, canvasHeight]);
 
   // Get all elements sorted by zIndex/position
@@ -597,13 +613,13 @@ export const PresentationMode = ({
     switch (slide.type) {
       case 'cover':
         return (
-          <div className="flex-1 flex flex-col items-center justify-center text-center px-12">
-            <h1 className={cn("text-5xl md:text-7xl font-bold mb-6", animationClass)}>
+          <div className="flex-1 flex flex-col items-center justify-center text-center px-6 sm:px-12">
+            <h1 className={cn("text-3xl sm:text-5xl md:text-7xl font-bold mb-4 sm:mb-6", animationClass)}>
               {slide.title}
             </h1>
             {slide.subtitle && (
               <p 
-                className={cn("text-2xl md:text-3xl opacity-80", animationClass)} 
+                className={cn("text-lg sm:text-2xl md:text-3xl opacity-80", animationClass)} 
                 style={{ animationDelay: '0.2s' }}
               >
                 {slide.subtitle}
@@ -614,18 +630,18 @@ export const PresentationMode = ({
 
       case 'content':
         return (
-          <div className="flex-1 flex flex-col px-16 py-12">
-            <h2 className={cn("text-4xl md:text-5xl font-bold mb-12", animationClass)}>
+          <div className="flex-1 flex flex-col px-6 sm:px-16 py-6 sm:py-12">
+            <h2 className={cn("text-2xl sm:text-4xl md:text-5xl font-bold mb-6 sm:mb-12", animationClass)}>
               {slide.title}
             </h2>
-            <div className="space-y-6 flex-1 stagger-animation">
+            <div className="space-y-4 sm:space-y-6 flex-1 stagger-animation">
               {slide.content?.map((item, index) => (
                 <div 
                   key={index} 
-                  className="flex items-start gap-4 text-2xl"
+                  className="flex items-start gap-3 sm:gap-4 text-lg sm:text-2xl"
                 >
                   <div 
-                    className="w-3 h-3 rounded-full mt-3 flex-shrink-0"
+                    className="w-2 sm:w-3 h-2 sm:h-3 rounded-full mt-2 sm:mt-3 flex-shrink-0"
                     style={{ backgroundColor: slide.textColor }}
                   />
                   <span>{item}</span>
@@ -638,12 +654,12 @@ export const PresentationMode = ({
       case 'section':
         return (
           <div className="flex-1 flex items-center justify-center">
-            <div className="text-center">
-              <h1 className={cn("text-6xl md:text-8xl font-bold mb-4", animationClass)}>
+            <div className="text-center px-4">
+              <h1 className={cn("text-4xl sm:text-6xl md:text-8xl font-bold mb-3 sm:mb-4", animationClass)}>
                 {slide.title}
               </h1>
               {slide.subtitle && (
-                <p className={cn("text-2xl md:text-3xl opacity-70", animationClass)} style={{ animationDelay: '0.3s' }}>
+                <p className={cn("text-lg sm:text-2xl md:text-3xl opacity-70", animationClass)} style={{ animationDelay: '0.3s' }}>
                   {slide.subtitle}
                 </p>
               )}
@@ -683,12 +699,12 @@ export const PresentationMode = ({
 
       case 'thankyou':
         return (
-          <div className="flex-1 flex flex-col items-center justify-center text-center px-12">
-            <h1 className={cn("text-6xl md:text-8xl font-bold mb-8", animationClass)}>
+          <div className="flex-1 flex flex-col items-center justify-center text-center px-6 sm:px-12">
+            <h1 className={cn("text-4xl sm:text-6xl md:text-8xl font-bold mb-6 sm:mb-8", animationClass)}>
               {slide.title}
             </h1>
             {slide.subtitle && (
-              <p className={cn("text-2xl md:text-3xl opacity-80", animationClass)} style={{ animationDelay: '0.2s' }}>
+              <p className={cn("text-lg sm:text-2xl md:text-3xl opacity-80", animationClass)} style={{ animationDelay: '0.2s' }}>
                 {slide.subtitle}
               </p>
             )}
@@ -697,16 +713,16 @@ export const PresentationMode = ({
 
       case 'comparison':
         return (
-          <div className="flex-1 flex flex-col px-16 py-12">
-            <h2 className={cn("text-4xl font-bold mb-8 text-center", animationClass)}>
+          <div className="flex-1 flex flex-col px-6 sm:px-16 py-6 sm:py-12">
+            <h2 className={cn("text-2xl sm:text-4xl font-bold mb-4 sm:mb-8 text-center", animationClass)}>
               {slide.title}
             </h2>
-            <div className="flex-1 flex gap-8">
-              <div className={cn("flex-1 rounded-xl p-6", animationClass)} style={{ backgroundColor: `${slide.textColor}15`, animationDelay: '0.2s' }}>
-                <h3 className="text-2xl font-semibold mb-4 text-center">Option A</h3>
+            <div className="flex-1 flex gap-4 sm:gap-8">
+              <div className={cn("flex-1 rounded-xl p-4 sm:p-6", animationClass)} style={{ backgroundColor: `${slide.textColor}15`, animationDelay: '0.2s' }}>
+                <h3 className="text-lg sm:text-2xl font-semibold mb-3 sm:mb-4 text-center">Option A</h3>
               </div>
-              <div className={cn("flex-1 rounded-xl p-6", animationClass)} style={{ backgroundColor: `${slide.textColor}15`, animationDelay: '0.4s' }}>
-                <h3 className="text-2xl font-semibold mb-4 text-center">Option B</h3>
+              <div className={cn("flex-1 rounded-xl p-4 sm:p-6", animationClass)} style={{ backgroundColor: `${slide.textColor}15`, animationDelay: '0.4s' }}>
+                <h3 className="text-lg sm:text-2xl font-semibold mb-3 sm:mb-4 text-center">Option B</h3>
               </div>
             </div>
           </div>
@@ -714,15 +730,15 @@ export const PresentationMode = ({
 
       case 'stats':
         return (
-          <div className="flex-1 flex flex-col px-16 py-12">
-            <h2 className={cn("text-4xl font-bold mb-12 text-center", animationClass)}>
+          <div className="flex-1 flex flex-col px-6 sm:px-16 py-6 sm:py-12">
+            <h2 className={cn("text-2xl sm:text-4xl font-bold mb-6 sm:mb-12 text-center", animationClass)}>
               {slide.title}
             </h2>
             <div className="flex-1 flex justify-around items-center stagger-animation">
               {(slide.content || ['100+', '50K', '99%', '24/7']).slice(0, 4).map((stat, index) => (
                 <div key={index} className="text-center">
-                  <div className="text-5xl md:text-6xl font-bold mb-2">{stat}</div>
-                  <div className="text-lg opacity-60">Label {index + 1}</div>
+                  <div className="text-3xl sm:text-5xl md:text-6xl font-bold mb-1 sm:mb-2">{stat}</div>
+                  <div className="text-sm sm:text-lg opacity-60">Label {index + 1}</div>
                 </div>
               ))}
             </div>
@@ -731,12 +747,12 @@ export const PresentationMode = ({
 
       default:
         return (
-          <div className="flex-1 flex flex-col items-center justify-center text-center px-12">
-            <h1 className={cn("text-4xl md:text-6xl font-bold mb-6", animationClass)}>
+          <div className="flex-1 flex flex-col items-center justify-center text-center px-6 sm:px-12">
+            <h1 className={cn("text-2xl sm:text-4xl md:text-6xl font-bold mb-4 sm:mb-6", animationClass)}>
               {slide.title}
             </h1>
             {slide.subtitle && (
-              <p className={cn("text-xl md:text-2xl opacity-80", animationClass)}>
+              <p className={cn("text-base sm:text-xl md:text-2xl opacity-80", animationClass)}>
                 {slide.subtitle}
               </p>
             )}
@@ -760,11 +776,13 @@ export const PresentationMode = ({
         {/* Outgoing Slide (rendered only during the exit phase) */}
         {isTransitioning && transitionPhase === 'out' && previousIndex !== null && (
           <div
-            className="absolute rounded-lg overflow-hidden shadow-2xl"
+            className="absolute rounded-lg shadow-2xl"
             style={{
               width: canvasWidth,
               height: canvasHeight,
               transformOrigin: 'center center',
+              overflow: 'hidden',
+              flexShrink: 0,
               transition: `all ${getTransitionDuration(previousIndex)}s ${getTransitionEasing(previousIndex)}`,
               background: slides[previousIndex].backgroundColor,
               color: slides[previousIndex].textColor,
@@ -781,11 +799,13 @@ export const PresentationMode = ({
         {transitionPhase !== 'out' && (
           <div
             key={currentIndex}
-            className="rounded-lg overflow-hidden shadow-2xl"
+            className="rounded-lg shadow-2xl"
             style={{
               width: canvasWidth,
               height: canvasHeight,
               transformOrigin: 'center center',
+              overflow: 'hidden',
+              flexShrink: 0,
               transition: `all ${getTransitionDuration(currentIndex)}s ${getTransitionEasing(currentIndex)}`,
               background: currentSlide.backgroundColor,
               color: currentSlide.textColor,
@@ -801,191 +821,277 @@ export const PresentationMode = ({
 
       {/* Bottom Toolbar */}
       {showToolbar && (
-        <div className="absolute bottom-4 sm:bottom-6 left-1/2 -translate-x-1/2 pointer-events-auto z-50 max-w-[calc(100vw-0.5rem)] sm:max-w-[calc(100vw-1rem)]">
-          <div className="flex items-center gap-0.5 sm:gap-1 bg-black/80 backdrop-blur-md rounded-xl sm:rounded-2xl px-2 sm:px-4 py-1.5 sm:py-2 shadow-2xl overflow-x-auto min-w-max scrollbar-thin">
-            {/* Previous */}
-            <Button
-              variant="ghost"
-              size="icon"
-              className="text-white hover:bg-white/20 h-8 w-8 sm:h-10 sm:w-10"
-              onClick={goToPrevious}
-              disabled={currentIndex === 0}
-            >
-              <ChevronLeft className="w-4 h-4 sm:w-5 sm:h-5" />
-            </Button>
+        <div className="absolute bottom-2 sm:bottom-5 left-1/2 -translate-x-1/2 pointer-events-auto z-50 w-[calc(100vw-1rem)] sm:w-auto max-w-[calc(100vw-1rem)]">
+          <div className="flex items-center justify-between sm:justify-center gap-1 bg-black/85 backdrop-blur-md rounded-2xl px-2 py-1.5 shadow-2xl">
 
-            {/* Slide Counter */}
-            <div className="px-2 sm:px-3 text-white text-center">
-              <div className="text-xs sm:text-sm font-medium min-w-[50px] sm:min-w-[60px]">
-                {currentIndex + 1} / {slides.length}
+            {/* ── Navigation group (always visible) ── */}
+            <div className="flex items-center gap-0.5">
+              <Button variant="ghost" size="icon"
+                className="text-white hover:bg-white/20 h-8 w-8"
+                onClick={goToPrevious}
+                disabled={currentIndex === 0}
+                title={language === 'ar' ? 'السابق' : 'Previous'}
+              >
+                <ChevronLeft className="w-4 h-4" />
+              </Button>
+
+              <div className="text-white text-center px-1 min-w-[44px]">
+                <div className="text-xs font-semibold leading-none">{currentIndex + 1}/{slides.length}</div>
+                {animatedElements.length > 0 && (
+                  <div className="text-white/50 text-[9px] leading-none mt-0.5">{currentElementIndex}/{animatedElements.length}</div>
+                )}
               </div>
-              {animatedElements.length > 0 && (
-                <div className="text-white/60 text-[10px] sm:text-xs leading-tight">
-                  ({currentElementIndex}/{animatedElements.length})
-                </div>
-              )}
+
+              <Button variant="ghost" size="icon"
+                className="text-white hover:bg-white/20 h-8 w-8"
+                onClick={goToNext}
+                disabled={currentIndex === slides.length - 1 && currentElementIndex >= animatedElements.length}
+                title={language === 'ar' ? 'التالي' : 'Next'}
+              >
+                <ChevronRight className="w-4 h-4" />
+              </Button>
             </div>
 
-            {/* Next */}
-            <Button
-              variant="ghost"
-              size="icon"
-              className="text-white hover:bg-white/20 h-8 w-8 sm:h-10 sm:w-10"
-              onClick={goToNext}
-              disabled={currentIndex === slides.length - 1 && currentElementIndex >= animatedElements.length}
+            <div className="w-px h-5 bg-white/20" />
+
+            {/* ── Auto-play (always visible, small) ── */}
+            <Button variant="ghost" size="icon"
+              className={cn("text-white hover:bg-white/20 h-8 w-8", isAutoPlaying && "bg-green-500/40")}
+              onClick={() => setIsAutoPlaying(!isAutoPlaying)}
+              title={language === 'ar' ? 'تشغيل تلقائي' : 'Auto-play'}
             >
-              <ChevronRight className="w-4 h-4 sm:w-5 sm:h-5" />
+              {isAutoPlaying ? <Pause className="w-3.5 h-3.5" /> : <Play className="w-3.5 h-3.5" />}
             </Button>
 
-            <div className="w-px h-5 sm:h-6 bg-white/20 mx-1 sm:mx-2" />
+            <div className="w-px h-5 bg-white/20" />
 
-            {/* Element Play/Pause - Only show if there are animated elements */}
+            {/* ── قائمة الأدوات ── */}
+            <Popover>
+              <PopoverTrigger asChild>
+                <Button variant="ghost" size="icon"
+                  className="text-white hover:bg-white/20 h-8 w-8"
+                  title={language === 'ar' ? 'أدوات العرض' : 'Presentation Tools'}
+                >
+                  <Pencil className="w-3.5 h-3.5" />
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent
+                side="top" align="center"
+                className="w-48 p-2 bg-black/90 border-white/10 text-white mb-2"
+              >
+                <p className="text-[10px] font-semibold text-white/50 uppercase tracking-wider px-1 mb-1.5">
+                  {language === 'ar' ? 'أدوات العرض' : 'Presentation Tools'}
+                </p>
+                <div className="space-y-0.5">
+                  {/* Laser Pointer */}
+                  <button
+                    onClick={() => setShowLaser(!showLaser)}
+                    className={cn(
+                      "w-full flex items-center gap-2.5 px-2 py-1.5 rounded-lg text-sm hover:bg-white/10 transition-colors",
+                      showLaser && "bg-red-500/30"
+                    )}
+                  >
+                    <Circle className={cn("w-4 h-4 flex-shrink-0", showLaser ? "fill-red-400 text-red-400" : "text-white/70")} />
+                    <span>{language === 'ar' ? 'مؤشر الليزر' : 'Laser Pointer'}</span>
+                    {showLaser && <span className="ml-auto text-[10px] text-red-400">{language === 'ar' ? 'مفعّل' : 'ON'}</span>}
+                  </button>
+                  {/* Drawing */}
+                  <button
+                    onClick={() => setIsDrawingMode(!isDrawingMode)}
+                    className={cn(
+                      "w-full flex items-center gap-2.5 px-2 py-1.5 rounded-lg text-sm hover:bg-white/10 transition-colors",
+                      isDrawingMode && "bg-white/20"
+                    )}
+                  >
+                    <Pencil className="w-4 h-4 flex-shrink-0 text-white/70" />
+                    <span>{language === 'ar' ? 'الرسم' : 'Drawing'}</span>
+                    {isDrawingMode && <span className="ml-auto text-[10px] text-green-400">{language === 'ar' ? 'مفعّل' : 'ON'}</span>}
+                  </button>
+                  {/* Blackout */}
+                  <button
+                    onClick={() => setIsBlackout(true)}
+                    className="w-full flex items-center gap-2.5 px-2 py-1.5 rounded-lg text-sm hover:bg-white/10 transition-colors"
+                  >
+                    <Square className="w-4 h-4 flex-shrink-0 fill-current text-white/70" />
+                    <span>{language === 'ar' ? 'شاشة سوداء' : 'Blackout'}</span>
+                  </button>
+                </div>
+              </PopoverContent>
+            </Popover>
+
+            {/* ── قائمة الأنيميشن (لو في عناصر متحركة) ── */}
             {animatedElements.length > 0 && (
-              <>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className={cn("text-white hover:bg-white/20 h-8 w-8 sm:h-10 sm:w-10", isElementPlaying && "bg-green-500/50")}
-                  onClick={toggleElementPlay}
-                  title={isElementPlaying ? (language === 'ar' ? 'إيقاف العرض التلقائي' : 'Pause Auto-play') : (language === 'ar' ? 'تشغيل تلقائي' : 'Auto-play')}
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button variant="ghost" size="icon"
+                    className={cn("text-white hover:bg-white/20 h-8 w-8", isElementPlaying && "bg-green-500/40")}
+                    title={language === 'ar' ? 'التحريك' : 'Animation'}
+                  >
+                    <Eye className="w-3.5 h-3.5" />
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent
+                  side="top" align="center"
+                  className="w-52 p-2 bg-black/90 border-white/10 text-white mb-2"
                 >
-                  {isElementPlaying ? <Pause className="w-3.5 h-3.5 sm:w-4 sm:h-4" /> : <Play className="w-3.5 h-3.5 sm:w-4 sm:h-4" />}
-                </Button>
-
-                {/* Show/Hide All Elements Toggle */}
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="text-white hover:bg-white/20 h-8 w-8 sm:h-10 sm:w-10"
-                  onClick={() => {
-                    if (currentElementIndex >= animatedElements.length) {
-                      // Hide all animated elements
-                      const nonAnimatedIds = currentSlide?.elements
-                        ?.filter(el => !el.animation || el.animation.type === 'none')
-                        .map(el => el.id) || [];
-                      setVisibleElements(new Set(nonAnimatedIds));
-                      setCurrentElementIndex(0);
-                    } else {
-                      // Show all elements
-                      const allIds = currentSlide?.elements?.map(el => el.id) || [];
-                      setVisibleElements(new Set(allIds));
-                      setCurrentElementIndex(animatedElements.length);
-                    }
-                  }}
-                  title={currentElementIndex >= animatedElements.length ? (language === 'ar' ? 'إخفاء الكل' : 'Hide All') : (language === 'ar' ? 'إظهار الكل' : 'Show All')}
-                >
-                  {currentElementIndex >= animatedElements.length ? <EyeOff className="w-3.5 h-3.5 sm:w-4 sm:h-4" /> : <Eye className="w-3.5 h-3.5 sm:w-4 sm:h-4" />}
-                </Button>
-
-                {/* Speed Control */}
-                <select
-                  value={elementPlaySpeed}
-                  onChange={(e) => setElementPlaySpeed(Number(e.target.value))}
-                  className="h-7 sm:h-8 px-1.5 sm:px-2 text-[10px] sm:text-xs rounded-md bg-white/10 text-white border-0 cursor-pointer hover:bg-white/20"
-                  title={language === 'ar' ? 'سرعة العرض' : 'Animation Speed'}
-                >
-                  <option value={500} className="bg-black">0.5s</option>
-                  <option value={1000} className="bg-black">1s</option>
-                  <option value={1500} className="bg-black">1.5s</option>
-                  <option value={2000} className="bg-black">2s</option>
-                  <option value={3000} className="bg-black">3s</option>
-                </select>
-              </>
+                  <p className="text-[10px] font-semibold text-white/50 uppercase tracking-wider px-1 mb-1.5">
+                    {language === 'ar' ? 'التحريك' : 'Animation'}
+                  </p>
+                  <div className="space-y-0.5">
+                    {/* Play/Pause elements */}
+                    <button
+                      onClick={toggleElementPlay}
+                      className={cn(
+                        "w-full flex items-center gap-2.5 px-2 py-1.5 rounded-lg text-sm hover:bg-white/10 transition-colors",
+                        isElementPlaying && "bg-green-500/30"
+                      )}
+                    >
+                      {isElementPlaying
+                        ? <Pause className="w-4 h-4 flex-shrink-0 text-white/70" />
+                        : <Play className="w-4 h-4 flex-shrink-0 text-white/70" />}
+                      <span>{isElementPlaying
+                        ? (language === 'ar' ? 'إيقاف التحريك' : 'Pause Animation')
+                        : (language === 'ar' ? 'تشغيل التحريك' : 'Play Animation')}</span>
+                    </button>
+                    {/* Show/Hide all */}
+                    <button
+                      onClick={() => {
+                        if (currentElementIndex >= animatedElements.length) {
+                          const nonAnimatedIds = currentSlide?.elements
+                            ?.filter(el => !el.animation || el.animation.type === 'none')
+                            .map(el => el.id) || [];
+                          setVisibleElements(new Set(nonAnimatedIds));
+                          setCurrentElementIndex(0);
+                        } else {
+                          const allIds = currentSlide?.elements?.map(el => el.id) || [];
+                          setVisibleElements(new Set(allIds));
+                          setCurrentElementIndex(animatedElements.length);
+                        }
+                      }}
+                      className="w-full flex items-center gap-2.5 px-2 py-1.5 rounded-lg text-sm hover:bg-white/10 transition-colors"
+                    >
+                      {currentElementIndex >= animatedElements.length
+                        ? <EyeOff className="w-4 h-4 flex-shrink-0 text-white/70" />
+                        : <Eye className="w-4 h-4 flex-shrink-0 text-white/70" />}
+                      <span>{currentElementIndex >= animatedElements.length
+                        ? (language === 'ar' ? 'إخفاء الكل' : 'Hide All')
+                        : (language === 'ar' ? 'إظهار الكل' : 'Show All')}</span>
+                    </button>
+                    {/* Speed */}
+                    <div className="px-2 pt-1.5 pb-1">
+                      <p className="text-[10px] text-white/40 mb-1.5">{language === 'ar' ? 'سرعة التحريك' : 'Animation Speed'}</p>
+                      <div className="flex gap-1 flex-wrap">
+                        {[500, 1000, 1500, 2000, 3000].map(ms => (
+                          <button
+                            key={ms}
+                            onClick={() => setElementPlaySpeed(ms)}
+                            className={cn(
+                              "px-2 py-0.5 rounded text-[10px] transition-colors",
+                              elementPlaySpeed === ms ? "bg-white text-black font-semibold" : "bg-white/10 hover:bg-white/20"
+                            )}
+                          >
+                            {ms / 1000}s
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+                </PopoverContent>
+              </Popover>
             )}
 
-            <div className="w-px h-5 sm:h-6 bg-white/20 mx-1 sm:mx-2" />
+            <div className="w-px h-5 bg-white/20" />
 
-            {/* Laser Pointer */}
-            <Button
-              variant="ghost"
-              size="icon"
-              className={cn("text-white hover:bg-white/20 h-8 w-8 sm:h-10 sm:w-10", showLaser && "bg-red-500/50")}
-              onClick={() => setShowLaser(!showLaser)}
-              title={language === 'ar' ? 'مؤشر ليزر' : 'Laser Pointer'}
-            >
-              <Circle className={cn("w-3.5 h-3.5 sm:w-4 sm:h-4", showLaser ? "fill-red-500 text-red-500" : "")} />
-            </Button>
+            {/* ── قائمة العرض ── */}
+            <Popover>
+              <PopoverTrigger asChild>
+                <Button variant="ghost" size="icon"
+                  className="text-white hover:bg-white/20 h-8 w-8"
+                  title={language === 'ar' ? 'عرض' : 'View'}
+                >
+                  <Grid3X3 className="w-3.5 h-3.5" />
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent
+                side="top" align="center"
+                className="w-48 p-2 bg-black/90 border-white/10 text-white mb-2"
+              >
+                <p className="text-[10px] font-semibold text-white/50 uppercase tracking-wider px-1 mb-1.5">
+                  {language === 'ar' ? 'العرض' : 'View'}
+                </p>
+                <div className="space-y-0.5">
+                  {/* Thumbnails */}
+                  <button
+                    onClick={() => setShowThumbnails(!showThumbnails)}
+                    className={cn(
+                      "w-full flex items-center gap-2.5 px-2 py-1.5 rounded-lg text-sm hover:bg-white/10 transition-colors",
+                      showThumbnails && "bg-white/20"
+                    )}
+                  >
+                    <Grid3X3 className="w-4 h-4 flex-shrink-0 text-white/70" />
+                    <span>{language === 'ar' ? 'كل الشرائح' : 'All Slides'}</span>
+                  </button>
+                  {/* Notes */}
+                  <button
+                    onClick={() => setShowNotes(!showNotes)}
+                    className={cn(
+                      "w-full flex items-center gap-2.5 px-2 py-1.5 rounded-lg text-sm hover:bg-white/10 transition-colors",
+                      showNotes && "bg-white/20"
+                    )}
+                  >
+                    <StickyNote className="w-4 h-4 flex-shrink-0 text-white/70" />
+                    <span>{language === 'ar' ? 'الملاحظات' : 'Speaker Notes'}</span>
+                  </button>
+                  {/* Auto-play interval */}
+                  <div className="px-2 pt-1.5 pb-1">
+                    <p className="text-[10px] text-white/40 mb-1.5">{language === 'ar' ? 'فترة التشغيل التلقائي' : 'Auto-play Interval'}</p>
+                    <div className="flex gap-1 flex-wrap">
+                      {[3, 5, 10, 15].map(s => (
+                        <button
+                          key={s}
+                          onClick={() => setAutoPlayInterval(s)}
+                          className={cn(
+                            "px-2 py-0.5 rounded text-[10px] transition-colors",
+                            autoPlayInterval === s ? "bg-white text-black font-semibold" : "bg-white/10 hover:bg-white/20"
+                          )}
+                        >
+                          {s}s
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                  {/* Help */}
+                  <button
+                    onClick={() => setShowShortcuts(true)}
+                    className="w-full flex items-center gap-2.5 px-2 py-1.5 rounded-lg text-sm hover:bg-white/10 transition-colors"
+                  >
+                    <HelpCircle className="w-4 h-4 flex-shrink-0 text-white/70" />
+                    <span>{language === 'ar' ? 'اختصارات لوحة المفاتيح' : 'Keyboard Shortcuts'}</span>
+                  </button>
+                </div>
+              </PopoverContent>
+            </Popover>
 
-            {/* Blackout */}
-            <Button
-              variant="ghost"
-              size="icon"
-              className="text-white hover:bg-white/20 h-8 w-8 sm:h-10 sm:w-10"
-              onClick={() => setIsBlackout(true)}
-              title={language === 'ar' ? 'شاشة سوداء' : 'Blackout'}
-            >
-              <Square className="w-3.5 h-3.5 sm:w-4 sm:h-4 fill-current" />
-            </Button>
-
-            {/* Drawing */}
-            <Button
-              variant="ghost"
-              size="icon"
-              className={cn("text-white hover:bg-white/20 h-8 w-8 sm:h-10 sm:w-10", isDrawingMode && "bg-white/20")}
-              onClick={() => setIsDrawingMode(!isDrawingMode)}
-              title={language === 'ar' ? 'أدوات الرسم' : 'Drawing'}
-            >
-              <Pencil className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
-            </Button>
-
-            <div className="w-px h-5 sm:h-6 bg-white/20 mx-1 sm:mx-2" />
-
-            {/* Thumbnails Grid */}
-            <Button
-              variant="ghost"
-              size="icon"
-              className={cn("text-white hover:bg-white/20 h-8 w-8 sm:h-10 sm:w-10", showThumbnails && "bg-white/20")}
-              onClick={() => setShowThumbnails(!showThumbnails)}
-              title={language === 'ar' ? 'كل الشرائح' : 'All Slides'}
-            >
-              <Grid3X3 className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
-            </Button>
-
-            {/* Notes */}
-            <Button
-              variant="ghost"
-              size="icon"
-              className={cn("text-white hover:bg-white/20 h-8 w-8 sm:h-10 sm:w-10", showNotes && "bg-white/20")}
-              onClick={() => setShowNotes(!showNotes)}
-              title={language === 'ar' ? 'الملاحظات' : 'Notes'}
-            >
-              <StickyNote className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
-            </Button>
-
-            {/* Help */}
-            <Button
-              variant="ghost"
-              size="icon"
-              className="text-white hover:bg-white/20 h-8 w-8 sm:h-10 sm:w-10"
-              onClick={() => setShowShortcuts(true)}
-              title={language === 'ar' ? 'المساعدة' : 'Help'}
-            >
-              <HelpCircle className="w-4 h-4" />
-            </Button>
-
-            <div className="w-px h-5 sm:h-6 bg-white/20 mx-1 sm:mx-2" />
+            <div className="w-px h-5 bg-white/20" />
 
             {/* Fullscreen */}
-            <Button
-              variant="ghost"
-              size="icon"
-              className="text-white hover:bg-white/20 h-8 w-8 sm:h-10 sm:w-10"
+            <Button variant="ghost" size="icon"
+              className="text-white hover:bg-white/20 h-8 w-8"
               onClick={toggleFullscreen}
               title={language === 'ar' ? 'ملء الشاشة' : 'Fullscreen'}
             >
-              {isFullscreen ? <Minimize2 className="w-3.5 h-3.5 sm:w-4 sm:h-4" /> : <Maximize2 className="w-3.5 h-3.5 sm:w-4 sm:h-4" />}
+              {isFullscreen ? <Minimize2 className="w-3.5 h-3.5" /> : <Maximize2 className="w-3.5 h-3.5" />}
             </Button>
 
             {/* Close */}
-            <Button
-              variant="ghost"
-              size="icon"
-              className="text-white hover:bg-white/20 h-8 w-8 sm:h-10 sm:w-10"
+            <Button variant="ghost" size="icon"
+              className="text-white hover:bg-white/20 h-8 w-8"
               onClick={onClose}
               title={language === 'ar' ? 'إغلاق' : 'Exit'}
             >
               <X className="w-4 h-4" />
             </Button>
+
           </div>
         </div>
       )}
@@ -1016,17 +1122,17 @@ export const PresentationMode = ({
       {currentIndex > 0 && (
         <button
           onClick={goToPrevious}
-          className="absolute left-4 top-1/2 -translate-y-1/2 p-3 rounded-full bg-black/30 text-white hover:bg-black/50 transition-all pointer-events-auto opacity-100 md:opacity-0 md:hover:opacity-100 hover:scale-110"
+          className="absolute left-2 sm:left-4 top-1/2 -translate-y-1/2 p-2 sm:p-3 rounded-full bg-black/30 text-white hover:bg-black/50 transition-all pointer-events-auto opacity-100 md:opacity-0 md:hover:opacity-100 hover:scale-110"
         >
-          <ChevronLeft className="w-8 h-8" />
+          <ChevronLeft className="w-6 h-6 sm:w-8 sm:h-8" />
         </button>
       )}
       {currentIndex < slides.length - 1 && (
           <button
             onClick={goToNext}
-            className="absolute right-4 top-1/2 -translate-y-1/2 p-3 rounded-full bg-black/30 text-white hover:bg-black/50 transition-all pointer-events-auto opacity-100 md:opacity-0 md:hover:opacity-100 hover:scale-110"
+            className="absolute right-2 sm:right-4 top-1/2 -translate-y-1/2 p-2 sm:p-3 rounded-full bg-black/30 text-white hover:bg-black/50 transition-all pointer-events-auto opacity-100 md:opacity-0 md:hover:opacity-100 hover:scale-110"
           >
-            <ChevronRight className="w-8 h-8" />
+            <ChevronRight className="w-6 h-6 sm:w-8 sm:h-8" />
           </button>
         )}
 

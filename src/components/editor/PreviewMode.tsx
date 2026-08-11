@@ -58,7 +58,13 @@ export const PreviewMode = ({
   const [isPlaying, setIsPlaying] = useState(false);
   const [playSpeed, setPlaySpeed] = useState(1000); // 1 second per element
   const containerRef = useRef<HTMLDivElement>(null);
-  const [containerSize, setContainerSize] = useState({ width: 800, height: 450 });
+  // Initialise with a window-based scale so the first render is already correct
+  // Header ~40px + progress 4px + footer ~50px = ~94px reserved
+  const [slideScale, setSlideScale] = useState(() => {
+    const vw = window.innerWidth * 0.97; // 95vw dialog
+    const vh = window.innerHeight - 94;  // minus header/footer
+    return Math.min(vw / canvasWidth, vh / canvasHeight) * 0.97;
+  });
   const playIntervalRef = useRef<NodeJS.Timeout | null>(null);
   
   // Slide transition state
@@ -66,32 +72,50 @@ export const PreviewMode = ({
   const [transitionDirection, setTransitionDirection] = useState<'forward' | 'backward'>('forward');
 
   const currentSlide = slides[currentSlideIndex];
-  const nextSlide = slides[currentSlideIndex + 1];
   const currentNotes = notes[currentSlide?.id]?.content || '';
   const progress = ((currentSlideIndex + 1) / slides.length) * 100;
 
-  // Calculate container size
+  // Calculate scale using ResizeObserver on the container div
   useEffect(() => {
-    const updateSize = () => {
-      if (containerRef.current) {
-        setContainerSize({
-          width: containerRef.current.clientWidth,
-          height: containerRef.current.clientHeight,
-        });
-      }
+    if (!isOpen) return;
+
+    const computeScale = (width: number, height: number) => {
+      if (width <= 0 || height <= 0) return;
+      const scaleX = width / canvasWidth;
+      const scaleY = height / canvasHeight;
+      setSlideScale(Math.min(scaleX, scaleY) * 0.97);
     };
 
-    updateSize();
-    window.addEventListener('resize', updateSize);
-    
-    // Also update when dialog opens
-    const timer = setTimeout(updateSize, 100);
-    
-    return () => {
-      window.removeEventListener('resize', updateSize);
-      clearTimeout(timer);
+    let ro: ResizeObserver | null = null;
+
+    const attach = () => {
+      const el = containerRef.current;
+      if (!el) return false;
+
+      const rect = el.getBoundingClientRect();
+      computeScale(rect.width, rect.height);
+
+      ro = new ResizeObserver((entries) => {
+        for (const entry of entries) {
+          const { width, height } = entry.contentRect;
+          computeScale(width, height);
+        }
+      });
+      ro.observe(el);
+      return true;
     };
-  }, [isOpen]);
+
+    // Try immediately, then after dialog animation completes
+    if (!attach()) {
+      const t = setTimeout(() => attach(), 100);
+      return () => {
+        clearTimeout(t);
+        ro?.disconnect();
+      };
+    }
+
+    return () => ro?.disconnect();
+  }, [isOpen, canvasWidth, canvasHeight]);
 
   // Get all elements sorted by zIndex or position
   const getAllElements = (slide: SlideTemplate) => {
@@ -398,12 +422,8 @@ export const PreviewMode = ({
     const previewCanvasWidth = canvasWidth;
     const previewCanvasHeight = canvasHeight;
     
-    // Calculate scale to fit container while maintaining aspect ratio
-    const scaleX = containerSize.width / previewCanvasWidth;
-    const scaleY = containerSize.height / previewCanvasHeight;
-    // Use higher scale for mobile to ensure full visibility
-    const isMobileContainer = containerSize.width < 768;
-    const scale = Math.min(scaleX, scaleY) * (isMobileContainer ? 0.98 : 0.92);
+    // Use the scale computed via ResizeObserver
+    const scale = slideScale;
     
     // Check if slide has visible content
     const hasElements = slide.elements && slide.elements.length > 0;
@@ -420,18 +440,20 @@ export const PreviewMode = ({
     
     return (
       <div
-        className="relative overflow-hidden flex items-center justify-center w-full h-full"
-        style={{ background: '#1a1a1a' }}
+        className="w-full h-full flex items-center justify-center"
+        style={{ background: '#1a1a1a', overflow: 'hidden' }}
       >
         {/* The actual slide content scaled to fit */}
         <div
-          className="rounded-lg overflow-hidden shadow-2xl"
+          className="rounded-lg shadow-2xl"
           style={{
             width: previewCanvasWidth,
             height: previewCanvasHeight,
             transform: `scale(${scale})`,
             transformOrigin: 'center center',
             background: slide.backgroundColor || '#ffffff',
+            overflow: 'hidden',
+            flexShrink: 0,
             transition: `all ${slideTransition.duration || 0.5}s ease-in-out`,
             ...transitionStyle,
           }}
@@ -558,12 +580,16 @@ export const PreviewMode = ({
 
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
-      <DialogContent className="max-w-[95vw] w-full max-h-[95vh] h-full p-0 gap-0 flex flex-col overflow-hidden" aria-describedby={undefined}>
+      <DialogContent 
+        className="max-w-[100vw] sm:max-w-[95vw] w-full h-[100dvh] sm:h-[95dvh] p-0 !gap-0 overflow-hidden [&>button]:hidden"
+        style={{ display: 'flex', flexDirection: 'column' }}
+        aria-describedby={undefined}
+      >
         <DialogTitle className="sr-only">
           {language === 'ar' ? 'معاينة العرض التقديمي' : 'Presentation Preview'}
         </DialogTitle>
         {/* Header */}
-        <div className="flex items-center justify-between flex-wrap gap-2 px-2 sm:px-4 py-1.5 sm:py-2 border-b bg-card">
+        <div className="flex items-center justify-between flex-wrap gap-2 px-2 sm:px-4 py-1 sm:py-1.5 sm:py-2 border-b bg-card">
           <div className="flex items-center gap-2 sm:gap-4 min-w-0">
             <h2 className="font-semibold flex items-center gap-1 sm:gap-2 text-sm sm:text-base">
               <Monitor className="w-4 h-4 sm:w-5 sm:h-5" />
@@ -640,7 +666,7 @@ export const PreviewMode = ({
           {/* Main Panel - Current Slide */}
           <div 
             ref={containerRef}
-            className="flex-1 flex items-center justify-center bg-neutral-900 p-4 min-h-0"
+            className="flex-1 flex items-center justify-center bg-neutral-900 min-h-0"
           >
             {currentSlide && renderSlidePreview(currentSlide)}
           </div>
@@ -674,7 +700,7 @@ export const PreviewMode = ({
         </div>
 
         {/* Footer - Navigation */}
-        <div className="flex items-center justify-between flex-wrap gap-1.5 sm:gap-2 px-2 sm:px-4 py-1.5 sm:py-2 border-t bg-card">
+        <div className="flex items-center justify-between flex-wrap gap-1.5 sm:gap-2 px-2 sm:px-4 py-1 sm:py-1.5 sm:py-2 border-t bg-card">
           {/* Slide Thumbnails */}
           <div className="flex items-center gap-1 sm:gap-2 overflow-x-auto max-w-[45%] sm:max-w-[60%] flex-1">
             {slides.map((slide, index) => (
