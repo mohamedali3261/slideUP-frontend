@@ -5,13 +5,14 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { useToast } from '@/hooks/use-toast';
 import { getSecurityQuestion, verifySecurityAnswer, resetPassword } from '@/lib/storage';
-import { Loader2, ArrowRight, CheckCircle2, Info, Globe } from 'lucide-react';
+import { Loader2, ArrowRight, CheckCircle2, Info } from 'lucide-react';
 import './LoginAnimated.css';
+import { LanguageSwitcher } from '@/components/LanguageSwitcher';
 
 const ForgotPassword = () => {
   const [step, setStep] = useState<'username' | 'answer' | 'newPassword' | 'success'>('username');
   const [isLoading, setIsLoading] = useState(false);
-  const { language, setLanguage } = useLanguage();
+  const { language } = useLanguage();
   const navigate = useNavigate();
   const { toast } = useToast();
 
@@ -21,10 +22,6 @@ const ForgotPassword = () => {
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [remainingAttempts, setRemainingAttempts] = useState<number>(3);
-
-  const toggleLanguage = () => {
-    setLanguage(language === 'ar' ? 'en' : 'ar');
-  };
 
   const t = {
     ar: {
@@ -202,14 +199,7 @@ const ForgotPassword = () => {
       <div className="top"></div>
       <div className="bottom"></div>
 
-      <button
-        onClick={toggleLanguage}
-        className="language-toggle"
-        aria-label="Toggle Language"
-      >
-        <Globe className="w-5 h-5" />
-        <span>{language === 'ar' ? 'EN' : 'ع'}</span>
-      </button>
+      <LanguageSwitcher variant="overlay" className="language-toggle" />
 
       <div className="center">
         {step === 'username' && (

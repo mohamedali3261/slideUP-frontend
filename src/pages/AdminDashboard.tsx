@@ -12,6 +12,7 @@ import {
   Crown, Presentation, Settings,
 } from 'lucide-react';
 import { getAllUsers, getPresentationsByUser } from '@/lib/storage';
+import { LanguageSwitcher } from '@/components/LanguageSwitcher';
 
 const AdminDashboard = () => {
   const { user, logout, isLoading } = useAuth();
@@ -74,10 +75,13 @@ const AdminDashboard = () => {
               </div>
             </div>
           </div>
-          <Button variant="ghost" size="sm" onClick={handleLogout} className="text-slate-400 hover:text-white flex-shrink-0">
-            <LogOut className="w-4 h-4 mr-2" />
-            {language === 'ar' ? 'خروج' : 'Logout'}
-          </Button>
+          <div className="flex items-center gap-1 sm:gap-2 flex-shrink-0">
+            <LanguageSwitcher variant="admin" />
+            <Button variant="ghost" size="sm" onClick={handleLogout} className="text-slate-400 hover:text-white flex-shrink-0">
+              <LogOut className="w-4 h-4 mr-2" />
+              {language === 'ar' ? 'خروج' : 'Logout'}
+            </Button>
+          </div>
         </div>
       </div>
 

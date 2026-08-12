@@ -11,42 +11,18 @@
   overscroll-behavior: contain;
 }
 
-/* Language Toggle Button */
+/* Language Toggle Button - positioning only (styling comes from LanguageSwitcher component) */
 .language-toggle {
   position: absolute;
   top: 20px;
   right: 20px;
   z-index: 30;
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 10px 16px;
-  background: rgba(255, 255, 255, 0.15);
-  backdrop-filter: blur(10px);
-  border: 1px solid rgba(255, 255, 255, 0.3);
-  border-radius: 12px;
-  color: white;
-  font-weight: 600;
-  font-size: 14px;
   cursor: pointer;
-  transition: all 0.3s ease;
-  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
 }
 
-.language-toggle:hover {
-  background: rgba(255, 255, 255, 0.25);
-  border-color: rgba(255, 255, 255, 0.5);
-  transform: translateY(-2px);
-  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.15);
-}
-
+.language-toggle:hover,
 .language-toggle:active {
-  transform: translateY(0);
-}
-
-.language-toggle span {
-  font-size: 16px;
-  font-weight: 700;
+  transform: none;
 }
 
 .login-animated-container:hover .top::before,
@@ -300,13 +276,6 @@
   .language-toggle {
     top: 12px;
     right: 12px;
-    padding: 6px 10px;
-    font-size: 12px;
-    gap: 6px;
-  }
-  
-  .language-toggle span {
-    font-size: 13px;
   }
   
   .center {

@@ -4,6 +4,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { useToast } from '@/hooks/use-toast';
 import { Loader2 } from 'lucide-react';
+import { LanguageSwitcher } from '@/components/LanguageSwitcher';
 
 const Login = () => {
   const { login } = useAuth();
@@ -42,6 +43,7 @@ const Login = () => {
 
   return (
     <div className="flex items-center justify-center min-h-screen bg-gradient-to-br from-primary/10 to-purple-500/10">
+      <LanguageSwitcher variant="navbar" className="fixed top-4 right-4 z-50" />
       <div className="text-center">
         <Loader2 className="w-8 h-8 animate-spin mx-auto mb-4 text-primary" />
         <p className="text-muted-foreground">

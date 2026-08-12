@@ -665,70 +665,90 @@ export const PreviewMode = ({
           {language === 'ar' ? 'معاينة العرض التقديمي' : 'Presentation Preview'}
         </DialogTitle>
         {/* Header */}
-        <div className="flex items-center justify-between flex-wrap gap-2 px-2 sm:px-4 py-1 sm:py-1.5 sm:py-2 border-b bg-card">
-          <div className="flex items-center gap-2 sm:gap-4 min-w-0">
-            <h2 className="font-semibold flex items-center gap-1 sm:gap-2 text-sm sm:text-base">
+        <div className="flex items-center justify-between flex-wrap gap-2 px-3 sm:px-4 py-2 sm:py-2.5 border-b bg-card/90 backdrop-blur-sm supports-[backdrop-filter]:bg-card/80">
+          <div className="flex items-center gap-2.5 sm:gap-3 min-w-0">
+            <div className="flex items-center justify-center w-8 h-8 sm:w-9 sm:h-9 rounded-xl bg-gradient-to-br from-primary to-purple-600 text-white shadow-sm shrink-0">
               <Monitor className="w-4 h-4 sm:w-5 sm:h-5" />
-              <span className="hidden sm:inline">{language === 'ar' ? 'معاينة' : 'Preview'}</span>
-            </h2>
-            <div className="flex flex-col items-start gap-0.5">
-              <Badge variant="outline" className="text-[10px] sm:text-xs px-1.5 sm:px-2">
-                {currentSlideIndex + 1} / {slides.length}
-              </Badge>
-              {allElements.length > 0 && (
-                <Badge variant="secondary" className="text-[8px] sm:text-[10px] px-1.5 sm:px-2">
-                  {language === 'ar' ? 'العناصر: ' : 'Elements: '}
-                  {currentAnimationIndex} / {allElements.length}
+            </div>
+            <div className="flex flex-col min-w-0">
+              <h2 className="font-semibold text-sm sm:text-base leading-tight truncate">
+                {language === 'ar' ? 'معاينة العرض' : 'Presentation Preview'}
+              </h2>
+              <div className="flex items-center gap-1.5 min-w-0">
+                <Badge variant="outline" className="text-[10px] sm:text-xs px-1.5 sm:px-2 py-0 font-medium shrink-0">
+                  {language === 'ar' ? 'شريحة' : 'Slide'} {currentSlideIndex + 1} / {slides.length}
                 </Badge>
-              )}
+                {allElements.length > 0 && (
+                  <span className="text-[10px] sm:text-xs text-muted-foreground truncate hidden sm:inline">
+                    {language === 'ar' ? 'العناصر' : 'Elements'}: {currentAnimationIndex} / {allElements.length}
+                  </span>
+                )}
+              </div>
             </div>
           </div>
 
-          <div className="flex items-center gap-1 sm:gap-2 ml-auto">
-            {/* Play/Pause Button */}
-            <Button
-              variant={isPlaying ? 'default' : 'outline'}
-              size="sm"
-              onClick={togglePlay}
-              className="gap-1 px-1.5 sm:px-2 sm:px-4 h-7 sm:h-8"
-            >
-              {isPlaying ? (
-                <Pause className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
-              ) : (
-                <Play className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
-              )}
-            </Button>
-
-            {/* Speed Control */}
-            <select
-              value={playSpeed}
-              onChange={(e) => setPlaySpeed(Number(e.target.value))}
-              className="h-7 sm:h-8 px-1.5 sm:px-2 text-[10px] sm:text rounded-md border bg-background"
-            >
-              <option value={500}>0.5s</option>
-              <option value={1000}>1s</option>
-              <option value={1500}>1.5s</option>
-              <option value={2000}>2s</option>
-              <option value={3000}>3s</option>
-            </select>
+          <div className="flex items-center gap-1.5 sm:gap-2">
+            {/* Playback controls group */}
+            <div className="flex items-center gap-0.5 sm:gap-1 rounded-lg bg-muted/60 border p-1">
+              <Button
+                variant={isPlaying ? 'default' : 'ghost'}
+                size="icon"
+                onClick={togglePlay}
+                className="h-7 w-7 sm:h-8 sm:w-8"
+                title={isPlaying ? (language === 'ar' ? 'إيقاف' : 'Pause') : (language === 'ar' ? 'تشغيل' : 'Play')}
+              >
+                {isPlaying ? (
+                  <Pause className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+                ) : (
+                  <Play className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+                )}
+              </Button>
+              <select
+                value={playSpeed}
+                onChange={(e) => setPlaySpeed(Number(e.target.value))}
+                className="h-7 sm:h-8 px-1 sm:px-1.5 text-[10px] sm:text-xs rounded-md border bg-background outline-none cursor-pointer focus-visible:ring-2 focus-visible:ring-ring"
+                title={language === 'ar' ? 'سرعة التشغيل' : 'Playback speed'}
+              >
+                <option value={500}>0.5s</option>
+                <option value={1000}>1s</option>
+                <option value={1500}>1.5s</option>
+                <option value={2000}>2s</option>
+                <option value={3000}>3s</option>
+              </select>
+            </div>
 
             {/* Toggle Notes */}
             <Button
               variant={showNotes ? 'default' : 'outline'}
-              size="sm"
+              size="icon"
               onClick={() => setShowNotes(!showNotes)}
-              className="px-1.5 sm:px-2 sm:px-4 h-7 sm:h-8"
+              className="h-8 w-8 sm:h-9 sm:w-9"
+              title={language === 'ar' ? 'ملاحظات المتحدث' : 'Speaker notes'}
             >
               <StickyNote className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
             </Button>
 
             {/* Start Presentation */}
-            <Button size="sm" onClick={onStartPresentation} className="px-1.5 sm:px-2 sm:px-4 h-7 sm:h-8">
+            <Button
+              size="icon"
+              onClick={onStartPresentation}
+              className="h-8 w-8 sm:h-9 sm:w-9"
+              title={language === 'ar' ? 'عرض كامل الشاشة' : 'Start fullscreen presentation'}
+            >
               <Maximize className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
             </Button>
 
+            {/* Divider */}
+            <div className="w-px h-5 bg-border mx-0.5 hidden sm:block" />
+
             {/* Close */}
-            <Button variant="ghost" size="icon" onClick={onClose} className="h-7 w-7 sm:h-8 sm:w-8">
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={onClose}
+              className="h-8 w-8 sm:h-9 sm:w-9 text-muted-foreground hover:text-foreground"
+              title={language === 'ar' ? 'إغلاق' : 'Close'}
+            >
               <X className="w-4 h-4 sm:w-5 sm:h-5" />
             </Button>
           </div>

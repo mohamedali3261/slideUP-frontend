@@ -334,6 +334,20 @@ export const PresentationMode = ({
     }
   }, [currentIndex, isTransitioning, startTransition]);
 
+  // Click on the slide itself: allow links to work normally, otherwise navigate by thirds
+  const handleSlideClick = (e: React.MouseEvent<HTMLDivElement>) => {
+    if (e.button !== 0) return;
+    if ((e.target as HTMLElement).closest('a[href]')) return;
+    if (isTransitioning) return;
+    const rect = e.currentTarget.getBoundingClientRect();
+    const x = e.clientX - rect.left;
+    if (x < rect.width / 3) {
+      goToPrevious();
+    } else if (x > (rect.width * 2) / 3) {
+      goToNext();
+    }
+  };
+
   // Phase: paint the outgoing slide, then apply its "out" style so it animates away
   useEffect(() => {
     if (transitionPhase === 'out') {
@@ -893,6 +907,7 @@ export const PresentationMode = ({
         {transitionPhase !== 'out' && (
           <div
             key={currentIndex}
+            onClick={handleSlideClick}
             className="rounded-lg shadow-2xl"
             style={{
               width: canvasWidth,
@@ -1282,13 +1297,6 @@ export const PresentationMode = ({
           </div>
         </div>
       )}
-
-      {/* Click areas for navigation */}
-      <div className="absolute inset-0 flex pointer-events-auto">
-        <div className="w-1/3 h-full cursor-pointer" onClick={goToPrevious} />
-        <div className="w-1/3 h-full" />
-        <div className="w-1/3 h-full cursor-pointer" onClick={goToNext} />
-      </div>
 
       {/* Drawing Tools */}
       <DrawingTools
