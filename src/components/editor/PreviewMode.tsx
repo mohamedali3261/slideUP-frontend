@@ -328,7 +328,25 @@ export const PreviewMode = ({
               justifyContent: element.verticalAlign === 'middle' ? 'center' : element.verticalAlign === 'bottom' ? 'flex-end' : 'flex-start',
             }}
           >
-            <span>{element.content || ''}</span>
+            {element.link ? (
+              <a
+                href={element.link}
+                target={element.linkTarget === '_self' ? '_self' : '_blank'}
+                rel="noopener noreferrer"
+                onClick={(e) => e.stopPropagation()}
+                style={{
+                  display: 'block',
+                  width: '100%',
+                  color: element.color || '#2563eb',
+                  textDecoration: element.textDecoration === 'line-through' ? 'line-through' : 'underline',
+                  cursor: 'pointer',
+                }}
+              >
+                {element.content || ''}
+              </a>
+            ) : (
+              <span>{element.content || ''}</span>
+            )}
           </div>
         )}
         

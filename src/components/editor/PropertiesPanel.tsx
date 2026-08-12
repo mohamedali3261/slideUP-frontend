@@ -5,7 +5,7 @@ import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
-import { Type, Image, Palette, Layout, Square, Circle, Minus, ArrowRight, Trash2, Upload, Smile, Table, Code, Sparkles, LucideIcon, ImagePlus, Shapes, Paintbrush, FileImage, Sticker, Wand2 } from 'lucide-react';
+import { Type, Image, Palette, Layout, Square, Circle, Minus, ArrowRight, Trash2, Upload, Smile, Table, Code, Sparkles, LucideIcon, ImagePlus, Shapes, Paintbrush, FileImage, Sticker, Wand2, Link2, ExternalLink } from 'lucide-react';
 import { toast } from 'sonner';
 import { IconLibrary, IconConfig } from './IconLibrary';
 import { DecorativeLibrary } from './DecorativeLibrary';
@@ -17,6 +17,7 @@ import { LayoutTools } from './LayoutTools';
 import { AnimationTab } from './AnimationTab';
 import { SlideTransition } from './AnimationControls';
 import { PexelsImageSearch } from './PexelsImageSearch';
+import { Input } from '@/components/ui/input';
 import type { BorderConfig, ShadowConfig, FiltersConfig } from '@/data/templates';
 
 // Custom icon storage key (same as IconLibrary)
@@ -828,6 +829,70 @@ export const PropertiesPanel = ({
                     >
                       {language === 'ar' ? 'بدون خلفية' : 'No Background'}
                     </Button>
+                  </div>
+                </div>
+
+                {/* Hyperlink */}
+                <div className="space-y-2.5 p-3 rounded-xl bg-gradient-to-br from-blue-500/5 to-indigo-500/5 border border-blue-500/20">
+                  <div className="flex items-center justify-between">
+                    <Label className="text-xs font-semibold flex items-center gap-2">
+                      <Link2 className="w-3.5 h-3.5 text-blue-500" />
+                      {language === 'ar' ? 'رابط (روابط قابلة للنقر)' : 'Hyperlink (Clickable Link)'}
+                    </Label>
+                    {selectedElement.link && (
+                      <a
+                        href={selectedElement.link}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-[10px] text-blue-500 hover:underline flex items-center gap-0.5"
+                        onClick={(e) => e.stopPropagation()}
+                      >
+                        <ExternalLink className="w-3 h-3" />
+                        {language === 'ar' ? 'افتح' : 'Open'}
+                      </a>
+                    )}
+                  </div>
+                  <p className="text-[10px] text-muted-foreground">
+                    {language === 'ar'
+                      ? 'عند النقر على النص في العرض التقديمي يتم الانتقال إلى الرابط'
+                      : 'Clicking the text in presentation mode will navigate to the link'}
+                  </p>
+                  <Input
+                    type="url"
+                    dir="ltr"
+                    value={selectedElement.link || ''}
+                    onChange={(e) => onUpdateElement({ link: e.target.value || undefined })}
+                    placeholder="https://example.com"
+                    className="h-9 text-xs rounded-lg bg-background"
+                  />
+                  <div className="flex gap-1.5">
+                    <Button
+                      variant={selectedElement.linkTarget === '_self' ? 'default' : 'outline'}
+                      size="sm"
+                      className={`flex-1 text-[11px] rounded-lg h-7 ${selectedElement.linkTarget === '_self' ? 'shadow-md' : ''}`}
+                      onClick={() => onUpdateElement({ linkTarget: '_self' })}
+                    >
+                      {language === 'ar' ? 'نفس النافذة' : 'Same tab'}
+                    </Button>
+                    <Button
+                      variant={selectedElement.linkTarget !== '_self' ? 'default' : 'outline'}
+                      size="sm"
+                      className={`flex-1 text-[11px] rounded-lg h-7 ${selectedElement.linkTarget !== '_self' ? 'shadow-md' : ''}`}
+                      onClick={() => onUpdateElement({ linkTarget: '_blank' })}
+                    >
+                      {language === 'ar' ? 'نافذة جديدة' : 'New tab'}
+                    </Button>
+                    {selectedElement.link && (
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="text-[11px] rounded-lg h-7 text-destructive hover:text-destructive"
+                        onClick={() => onUpdateElement({ link: undefined, linkTarget: undefined })}
+                      >
+                        <Trash2 className="w-3 h-3 mr-1" />
+                        {language === 'ar' ? 'حذف' : 'Remove'}
+                      </Button>
+                    )}
                   </div>
                 </div>
               </>

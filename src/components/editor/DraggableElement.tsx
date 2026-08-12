@@ -4,7 +4,7 @@ import { cn } from '@/lib/utils';
 import { IconRenderer } from './IconRenderer';
 import { TableEditor } from './TableEditor';
 import { CodeBlock } from './CodeBlock';
-import { RotateCw, ClipboardPaste } from 'lucide-react';
+import { RotateCw, ClipboardPaste, Link2 } from 'lucide-react';
 import { useLanguage } from '@/contexts/LanguageContext';
 
 type ResizeDirection = 'n' | 's' | 'e' | 'w' | 'ne' | 'nw' | 'se' | 'sw' | 'rotate';
@@ -787,7 +787,7 @@ export const DraggableElement = ({
             </button>
           </div>
         ) : (
-          <div data-text-content className="whitespace-pre-wrap flex flex-col" style={{ ...textStyles, ...getVerticalAlignStyles(element.verticalAlign), padding: '4px 8px' }}>
+          <div data-text-content className="whitespace-pre-wrap flex flex-col" style={{ ...textStyles, ...getVerticalAlignStyles(element.verticalAlign), padding: '4px 8px', ...(element.link ? { color: element.color || '#2563eb', textDecoration: element.textDecoration === 'line-through' ? 'line-through' : 'underline', cursor: 'pointer' } : {}) }}>
             {element.content || 'Double click to edit'}
           </div>
         );
@@ -966,6 +966,18 @@ export const DraggableElement = ({
             </div>
           )}
           
+          {/* Link indicator */}
+          {element.link && (
+            <div
+              className="absolute -top-7 left-0 flex items-center gap-1 px-1.5 py-0.5 bg-blue-600 text-white text-[9px] font-medium rounded shadow-md"
+              style={{ zIndex: 1001 }}
+              title={element.link}
+            >
+              <Link2 className="w-2.5 h-2.5" />
+              <span className="max-w-[120px] truncate">{element.link.replace(/^https?:\/\//, '')}</span>
+            </div>
+          )}
+
           {/* Rotation handle */}
           <div 
             className="absolute left-1/2 -translate-x-1/2 -top-8 w-6 h-6 bg-white border-2 border-black rounded-full cursor-grab hover:bg-black hover:text-white transition-all duration-200 flex items-center justify-center shadow-md hover:scale-110 group"

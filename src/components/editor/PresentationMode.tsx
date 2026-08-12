@@ -563,7 +563,25 @@ export const PresentationMode = ({
               justifyContent: element.verticalAlign === 'middle' ? 'center' : element.verticalAlign === 'bottom' ? 'flex-end' : 'flex-start',
             }}
           >
-            <span style={{ display: 'block', width: '100%' }}>{element.content}</span>
+            <span style={{ display: 'block', width: '100%' }}>
+              {element.link ? (
+                <a
+                  href={element.link}
+                  target={element.linkTarget === '_self' ? '_self' : '_blank'}
+                  rel="noopener noreferrer"
+                  onClick={(e) => e.stopPropagation()}
+                  style={{
+                    color: element.color || '#2563eb',
+                    textDecoration: element.textDecoration === 'line-through' ? 'line-through' : 'underline',
+                    cursor: 'pointer',
+                  }}
+                >
+                  {element.content}
+                </a>
+              ) : (
+                element.content
+              )}
+            </span>
           </div>
         );
       case 'shape':

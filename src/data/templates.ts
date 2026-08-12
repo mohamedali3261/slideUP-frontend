@@ -83,6 +83,8 @@ export interface SlideElement {
   fontFamily?: string;
   textShadow?: string;
   color?: string;
+  link?: string;
+  linkTarget?: '_blank' | '_self';
   backgroundColor?: string;
   borderRadius?: number;
   imageUrl?: string;
@@ -173,6 +175,7 @@ export interface PresentationTemplate {
   descriptionEn?: string;
   tags?: string[];
   isNew?: boolean;
+  language?: 'ar' | 'en';
 }
 
 // Import all templates
@@ -194,7 +197,11 @@ import { arabicEducationTemplate } from './templates/arabic-education';
 import { arabicRestaurantTemplate } from './templates/arabic-restaurant';
 import { arabicEventTemplate } from './templates/arabic-event';
 import { arabicMarketingTemplate } from './templates/arabic-marketing';
-import { techTrendsTemplate } from './templates/tech-trends';
+import { arabicTechCompanyTemplate } from './templates/arabic-tech-company';
+import { arabicSoftwareTemplate } from './templates/arabic-software';
+import { arabicStartupTemplate } from './templates/arabic-startup';
+import { arabicCloudTemplate } from './templates/arabic-cloud';
+import { arabicAiTemplate } from './templates/arabic-ai';
 
 export const templates: PresentationTemplate[] = [
   dataAnalyticsTemplate,
@@ -215,7 +222,11 @@ export const templates: PresentationTemplate[] = [
   arabicRestaurantTemplate,
   arabicEventTemplate,
   arabicMarketingTemplate,
-  techTrendsTemplate,
+  arabicTechCompanyTemplate,
+  arabicSoftwareTemplate,
+  arabicStartupTemplate,
+  arabicCloudTemplate,
+  arabicAiTemplate,
 ];
 
 export const getTemplateById = (id: string): PresentationTemplate | undefined => {

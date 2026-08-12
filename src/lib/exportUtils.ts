@@ -232,6 +232,12 @@ const addElementToPptx = async (pptSlide: any, pptx: any, element: SlideElement,
       if (element.backgroundColor && !element.backgroundColor.includes('gradient')) {
         opts.fill = { color: toHex(element.backgroundColor) };
       }
+      if (element.link) {
+        opts.hyperlink = {
+          url: element.link,
+          tooltip: element.link,
+        };
+      }
       pptSlide.addText(element.content || '', opts);
       break;
     }
