@@ -844,6 +844,65 @@ export const DraggableElement = ({
         if (!element.codeConfig) return null;
         return <CodeBlock config={element.codeConfig} onChange={(codeConfig) => onUpdate({ codeConfig })} width={element.width} height={element.height} isEditing={isSelected} />;
 
+      case 'chart': {
+        if (!element.chartConfig) return null;
+        const { type, data } = element.chartConfig;
+        const max = Math.max(...data.map(d => d.value), 1);
+        const palette = ['#06b6d4','#ef4444','#f59e0b','#10b981','#3b82f6','#8b5cf6','#ec4899','#84cc16'];
+
+        if (type === 'bar') return (
+          <div style={{ width: '100%', height: '100%', display: 'flex', flexDirection: 'column', padding: 8, boxSizing: 'border-box' }}>
+            <div style={{ flex: 1, display: 'flex', alignItems: 'flex-end', gap: 4 }}>
+              {data.map((d, i) => (
+                <div key={i} style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', height: '100%', justifyContent: 'flex-end' }}>
+                  <div style={{ width: '100%', height: `${(d.value / max) * 100}%`, background: d.color || palette[i % palette.length], borderRadius: '3px 3px 0 0', minHeight: 2 }} />
+                </div>
+              ))}
+            </div>
+            <div style={{ display: 'flex', gap: 4, marginTop: 4 }}>
+              {data.map((d, i) => (
+                <div key={i} style={{ flex: 1, textAlign: 'center', fontSize: Math.max(9, element.height / (data.length + 2) / 2), opacity: 0.7, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{d.name}</div>
+              ))}
+            </div>
+          </div>
+        );
+
+        if (type === 'line') {
+          const pts = data.map((d, i) => `${(i / Math.max(data.length - 1, 1)) * 100},${100 - (d.value / max) * 100}`).join(' ');
+          return (
+            <svg viewBox="0 0 100 100" preserveAspectRatio="none" style={{ width: '100%', height: '100%' }}>
+              <polyline points={pts} fill="none" stroke={data[0]?.color || palette[0]} strokeWidth={2} vectorEffect="non-scaling-stroke" />
+              {data.map((d, i) => {
+                const cx = (i / Math.max(data.length - 1, 1)) * 100;
+                const cy = 100 - (d.value / max) * 100;
+                return <circle key={i} cx={cx} cy={cy} r={2} fill={d.color || palette[i % palette.length]} vectorEffect="non-scaling-stroke" />;
+              })}
+            </svg>
+          );
+        }
+
+        if (type === 'pie') {
+          const total = data.reduce((s, d) => s + d.value, 0) || 1;
+          let acc = 0;
+          return (
+            <svg viewBox="0 0 100 100" style={{ width: '100%', height: '100%' }}>
+              {data.map((d, i) => {
+                const start = (acc / total) * 360;
+                acc += d.value;
+                const end = (acc / total) * 360;
+                const x1 = 50 + 40 * Math.cos(((start - 90) * Math.PI) / 180);
+                const y1 = 50 + 40 * Math.sin(((start - 90) * Math.PI) / 180);
+                const x2 = 50 + 40 * Math.cos(((end - 90) * Math.PI) / 180);
+                const y2 = 50 + 40 * Math.sin(((end - 90) * Math.PI) / 180);
+                const large = end - start > 180 ? 1 : 0;
+                return <path key={i} d={`M50 50 L${x1} ${y1} A40 40 0 ${large} 1 ${x2} ${y2} Z`} fill={d.color || palette[i % palette.length]} />;
+              })}
+            </svg>
+          );
+        }
+        return null;
+      }
+
       default:
         return null;
     }
