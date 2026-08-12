@@ -2,6 +2,7 @@ import { PresentationTemplate } from '../templates';
 
 export const ecommerceTemplate: PresentationTemplate = {
   id: 'ecommerce-launch',
+  language: 'en',
   titleKey: 'E-Commerce Product Launch',
   categoryKey: 'templates.ecommerce',
   slideCount: 10,

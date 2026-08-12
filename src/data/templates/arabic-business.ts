@@ -2,6 +2,7 @@ import { PresentationTemplate } from '../templates';
 
 export const arabicBusinessTemplate: PresentationTemplate = {
   id: 'arabic-business',
+  language: 'ar',
   titleKey: 'Arabic Business',
   categoryKey: 'templates.business',
   slideCount: 8,

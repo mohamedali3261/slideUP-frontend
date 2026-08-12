@@ -2,6 +2,7 @@ import { PresentationTemplate } from '../templates';
 
 export const realEstateTemplate: PresentationTemplate = {
   id: 'real-estate',
+  language: 'en',
   titleKey: 'Real Estate Showcase',
   categoryKey: 'templates.realestate',
   slideCount: 8,

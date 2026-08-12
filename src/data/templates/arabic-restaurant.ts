@@ -2,6 +2,7 @@ import { PresentationTemplate } from '../templates';
 
 export const arabicRestaurantTemplate: PresentationTemplate = {
   id: 'arabic-restaurant',
+  language: 'ar',
   titleKey: 'Arabic Restaurant',
   categoryKey: 'templates.restaurant',
   slideCount: 8,

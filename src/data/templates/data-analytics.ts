@@ -2,6 +2,7 @@ import { PresentationTemplate } from '../templates';
 
 export const dataAnalyticsTemplate: PresentationTemplate = {
   id: 'data-analytics',
+  language: 'en',
   titleKey: 'Data Analytics Dashboard',
   categoryKey: 'templates.technology',
   slideCount: 10,

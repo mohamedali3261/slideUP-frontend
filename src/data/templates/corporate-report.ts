@@ -2,6 +2,7 @@ import { PresentationTemplate } from '../templates';
 
 export const corporateReportTemplate: PresentationTemplate = {
   id: 'corporate-report',
+  language: 'en',
   titleKey: 'Corporate Annual Report',
   categoryKey: 'templates.business',
   slideCount: 12,

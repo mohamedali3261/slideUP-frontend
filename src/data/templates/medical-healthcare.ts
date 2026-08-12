@@ -2,6 +2,7 @@ import { PresentationTemplate } from '../templates';
 
 export const medicalHealthcareTemplate: PresentationTemplate = {
   id: 'medical-healthcare',
+  language: 'en',
   titleKey: 'Medical & Healthcare',
   categoryKey: 'templates.medical',
   slideCount: 10,

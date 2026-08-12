@@ -2,6 +2,7 @@ import { PresentationTemplate } from '../templates';
 
 export const financeReportTemplate: PresentationTemplate = {
   id: 'finance-report',
+  language: 'en',
   titleKey: 'Finance Report',
   categoryKey: 'templates.finance',
   slideCount: 8,

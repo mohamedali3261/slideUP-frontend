@@ -2,6 +2,7 @@ import { PresentationTemplate } from '../templates';
 
 export const aiIntelligenceTemplate: PresentationTemplate = {
   id: 'ai-intelligence',
+  language: 'en',
   titleKey: 'AI Intelligence',
   categoryKey: 'templates.technology',
   slideCount: 8,

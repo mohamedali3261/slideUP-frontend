@@ -2,6 +2,7 @@ import { PresentationTemplate } from '../templates';
 
 export const saintLuciaGastronomyTemplate: PresentationTemplate = {
   id: 'saint-lucia-gastronomy',
+  language: 'en',
   titleKey: 'SlideUP Welcome',
   categoryKey: 'Welcome',
   slideCount: 1,

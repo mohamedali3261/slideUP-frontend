@@ -2,6 +2,7 @@ import { PresentationTemplate } from '../templates';
 
 export const onlineCourseTemplate: PresentationTemplate = {
   id: 'online-course',
+  language: 'en',
   titleKey: 'Online Course / Workshop',
   categoryKey: 'templates.education',
   slideCount: 12,

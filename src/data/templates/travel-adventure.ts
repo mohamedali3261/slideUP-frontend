@@ -2,6 +2,7 @@ import { PresentationTemplate } from '../templates';
 
 export const travelAdventureTemplate: PresentationTemplate = {
   id: 'travel-adventure',
+  language: 'en',
   titleKey: 'Travel Adventure',
   categoryKey: 'templates.travel',
   slideCount: 8,

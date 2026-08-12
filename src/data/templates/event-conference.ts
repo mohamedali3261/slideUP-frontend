@@ -2,6 +2,7 @@ import { PresentationTemplate } from '../templates';
 
 export const eventConferenceTemplate: PresentationTemplate = {
   id: 'event-conference',
+  language: 'en',
   titleKey: 'Event & Conference',
   categoryKey: 'templates.event',
   slideCount: 10,

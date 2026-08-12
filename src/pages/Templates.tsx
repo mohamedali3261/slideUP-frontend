@@ -51,6 +51,12 @@ export const Templates = () => {
     return matchesSearch && matchesCategory;
   });
 
+  const getTemplateLanguage = (template: { language?: 'ar' | 'en'; id: string }): 'ar' | 'en' =>
+    template.language || (template.id.startsWith('arabic-') ? 'ar' : 'en');
+
+  const arabicTemplates = filteredTemplates.filter(t => getTemplateLanguage(t) === 'ar');
+  const englishTemplates = filteredTemplates.filter(t => getTemplateLanguage(t) !== 'ar');
+
   const newTemplatesCount = templates.filter(template => template.isNew).length;
   const currentCategoryLabel = activeCategory === ''
     ? (language === 'ar' ? 'كل التصنيفات' : 'All Categories')
@@ -164,16 +170,53 @@ export const Templates = () => {
             <SkeletonGrid count={6} variant="template" />
           ) : (
             <>
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
-                {filteredTemplates.map((template) => (
-                  <LiveTemplateCard
-                    key={template.id}
-                    template={template}
-                    description={language === 'ar' ? (template.description || '') : (template.descriptionEn || template.description || '')}
-                    category={t(template.categoryKey)}
-                  />
-                ))}
-              </div>
+              {arabicTemplates.length > 0 && (
+                <section className="mb-12 sm:mb-16">
+                  <div className="flex items-center gap-3 mb-6 sm:mb-8">
+                    <span className="w-1.5 h-8 rounded-full bg-gradient-to-b from-primary to-purple-600" />
+                    <h3 className="text-xl sm:text-2xl md:text-3xl font-bold text-foreground">
+                      {language === 'ar' ? 'قوالب عربية' : 'Arabic Templates'}
+                    </h3>
+                    <span className="px-2.5 py-1 rounded-full bg-primary/10 text-primary text-xs font-semibold">
+                      {arabicTemplates.length}
+                    </span>
+                  </div>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
+                    {arabicTemplates.map((template) => (
+                      <LiveTemplateCard
+                        key={template.id}
+                        template={template}
+                        description={language === 'ar' ? (template.description || '') : (template.descriptionEn || template.description || '')}
+                        category={t(template.categoryKey)}
+                      />
+                    ))}
+                  </div>
+                </section>
+              )}
+
+              {englishTemplates.length > 0 && (
+                <section className="mb-12 sm:mb-16">
+                  <div className="flex items-center gap-3 mb-6 sm:mb-8">
+                    <span className="w-1.5 h-8 rounded-full bg-gradient-to-b from-sky-500 to-indigo-600" />
+                    <h3 className="text-xl sm:text-2xl md:text-3xl font-bold text-foreground">
+                      {language === 'ar' ? 'قوالب إنجليزية' : 'English Templates'}
+                    </h3>
+                    <span className="px-2.5 py-1 rounded-full bg-sky-500/10 text-sky-500 text-xs font-semibold">
+                      {englishTemplates.length}
+                    </span>
+                  </div>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
+                    {englishTemplates.map((template) => (
+                      <LiveTemplateCard
+                        key={template.id}
+                        template={template}
+                        description={language === 'ar' ? (template.description || '') : (template.descriptionEn || template.description || '')}
+                        category={t(template.categoryKey)}
+                      />
+                    ))}
+                  </div>
+                </section>
+              )}
 
               {filteredTemplates.length === 0 && (
                 <div className="text-center py-16">

@@ -2,6 +2,7 @@ import { PresentationTemplate } from '../templates';
 
 export const architecturePortfolioTemplate: PresentationTemplate = {
   id: 'architecture-portfolio',
+  language: 'en',
   titleKey: 'Architecture Portfolio',
   categoryKey: 'templates.architecture',
   slideCount: 8,

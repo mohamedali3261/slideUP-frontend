@@ -2,6 +2,7 @@ import { PresentationTemplate } from '../templates';
 
 export const sportsEnergyTemplate: PresentationTemplate = {
   id: 'sports-energy',
+  language: 'en',
   titleKey: 'Sports Energy',
   categoryKey: 'templates.sports',
   slideCount: 8,
