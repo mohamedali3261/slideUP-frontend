@@ -536,6 +536,8 @@ export const PresentationMode = ({
 
   // Render element content
   const renderElementContent = (element: SlideElement) => {
+    const colors = ['#06b6d4','#ef4444','#f59e0b','#10b981','#3b82f6','#8b5cf6','#ec4899','#84cc16'];
+
     switch (element.type) {
       case 'text':
         return (
@@ -543,16 +545,31 @@ export const PresentationMode = ({
             style={{
               fontSize: element.fontSize,
               fontWeight: element.fontWeight,
+              fontStyle: element.fontStyle || 'normal',
               color: element.color,
               textAlign: element.textAlign,
+              textDecoration: element.textDecoration,
+              lineHeight: element.lineHeight || 1.5,
+              letterSpacing: element.letterSpacing ? `${element.letterSpacing}px` : undefined,
+              fontFamily: element.fontFamily,
+              backgroundColor: element.backgroundColor,
+              textShadow: element.textShadow,
               width: '100%',
               height: '100%',
+              padding: 8,
+              boxSizing: 'border-box' as const,
+              display: 'flex',
+              flexDirection: 'column' as const,
+              justifyContent: element.verticalAlign === 'middle' ? 'center' : element.verticalAlign === 'bottom' ? 'flex-end' : 'flex-start',
             }}
           >
-            {element.content}
+            <span style={{ display: 'block', width: '100%' }}>{element.content}</span>
           </div>
         );
       case 'shape':
+        if (element.shapeType === 'arrow') {
+          return <svg viewBox="0 0 100 50" style={{ width: '100%', height: '100%' }}><polygon points="0,20 70,20 70,0 100,25 70,50 70,30 0,30" fill={element.backgroundColor || '#3b82f6'} /></svg>;
+        }
         return (
           <div
             style={{
@@ -573,10 +590,69 @@ export const PresentationMode = ({
               width: '100%',
               height: '100%',
               objectFit: element.objectFit || 'cover',
+              objectPosition: element.objectPosition || 'center',
               borderRadius: element.borderRadius,
+              transform: `rotate(${element.imageRotation || 0}deg) scaleX(${element.flipHorizontal ? -1 : 1}) scaleY(${element.flipVertical ? -1 : 1})`,
             }}
           />
         );
+      case 'chart': {
+        if (!element.chartConfig) return null;
+        const { type, data } = element.chartConfig;
+        const max = Math.max(...data.map(d => d.value), 1);
+
+        if (type === 'bar') return (
+          <div style={{ width: '100%', height: '100%', display: 'flex', flexDirection: 'column', padding: 8, boxSizing: 'border-box' }}>
+            <div style={{ flex: 1, display: 'flex', alignItems: 'flex-end', gap: 4 }}>
+              {data.map((d, i) => (
+                <div key={i} style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', height: '100%', justifyContent: 'flex-end' }}>
+                  <div style={{ width: '100%', height: `${(d.value / max) * 100}%`, background: d.color || colors[i % colors.length], borderRadius: '3px 3px 0 0', minHeight: 2 }} />
+                </div>
+              ))}
+            </div>
+            <div style={{ display: 'flex', gap: 4, marginTop: 4 }}>
+              {data.map((d, i) => (
+                <div key={i} style={{ flex: 1, textAlign: 'center', fontSize: Math.max(8, element.height / data.length / 3), color: 'inherit', opacity: 0.7, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{d.name}</div>
+              ))}
+            </div>
+          </div>
+        );
+
+        if (type === 'line') {
+          const pts = data.map((d, i) => `${(i / Math.max(data.length - 1, 1)) * 100},${100 - (d.value / max) * 100}`).join(' ');
+          return (
+            <svg viewBox="0 0 100 100" preserveAspectRatio="none" style={{ width: '100%', height: '100%' }}>
+              <polyline points={pts} fill="none" stroke={data[0]?.color || colors[0]} strokeWidth={2} vectorEffect="non-scaling-stroke" />
+              {data.map((d, i) => {
+                const cx = (i / Math.max(data.length - 1, 1)) * 100;
+                const cy = 100 - (d.value / max) * 100;
+                return <circle key={i} cx={cx} cy={cy} r={2} fill={d.color || colors[i % colors.length]} vectorEffect="non-scaling-stroke" />;
+              })}
+            </svg>
+          );
+        }
+
+        if (type === 'pie') {
+          const total = data.reduce((s, d) => s + d.value, 0) || 1;
+          let acc = 0;
+          return (
+            <svg viewBox="0 0 100 100" style={{ width: '100%', height: '100%' }}>
+              {data.map((d, i) => {
+                const start = (acc / total) * 360;
+                acc += d.value;
+                const end = (acc / total) * 360;
+                const x1 = 50 + 40 * Math.cos(((start - 90) * Math.PI) / 180);
+                const y1 = 50 + 40 * Math.sin(((start - 90) * Math.PI) / 180);
+                const x2 = 50 + 40 * Math.cos(((end - 90) * Math.PI) / 180);
+                const y2 = 50 + 40 * Math.sin(((end - 90) * Math.PI) / 180);
+                const large = end - start > 180 ? 1 : 0;
+                return <path key={i} d={`M50 50 L${x1} ${y1} A40 40 0 ${large} 1 ${x2} ${y2} Z`} fill={d.color || colors[i % colors.length]} />;
+              })}
+            </svg>
+          );
+        }
+        return null;
+      }
       default:
         return null;
     }
