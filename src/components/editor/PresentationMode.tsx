@@ -3,6 +3,9 @@ import { useLanguage } from '@/contexts/LanguageContext';
 import { SlideTemplate, SlideElement } from '@/data/templates';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import { IconRenderer } from './IconRenderer';
+import { TableEditor } from './TableEditor';
+import { CodeBlock } from './CodeBlock';
 import { 
   ChevronLeft, 
   ChevronRight, 
@@ -563,6 +566,7 @@ export const PresentationMode = ({
               color: element.color,
               textAlign: element.textAlign,
               textDecoration: element.textDecoration,
+              textTransform: element.textTransform || 'none',
               lineHeight: element.lineHeight || 1.5,
               letterSpacing: element.letterSpacing ? `${element.letterSpacing}px` : undefined,
               fontFamily: element.fontFamily,
@@ -685,6 +689,72 @@ export const PresentationMode = ({
         }
         return null;
       }
+
+      case 'icon':
+        if (!element.iconConfig) return null;
+        return (
+          <div className="w-full h-full flex items-center justify-center">
+            <IconRenderer
+              config={{ ...element.iconConfig, size: Math.min(element.width, element.height) * 0.8 }}
+              className="w-full h-full"
+            />
+          </div>
+        );
+
+      case 'table':
+        if (!element.tableConfig) return null;
+        return (
+          <TableEditor
+            config={{
+              ...element.tableConfig,
+              alternateRowColors: element.tableConfig.alternateRowColors ?? false,
+              alternateColor: element.tableConfig.alternateColor ?? '#f9fafb',
+              headerBgColor: element.tableConfig.headerBgColor ?? '#f3f4f6',
+              headerTextColor: element.tableConfig.headerTextColor ?? '#111827',
+            }}
+            onChange={() => {}}
+            width={element.width}
+            height={element.height}
+          />
+        );
+
+      case 'code':
+        if (!element.codeConfig) return null;
+        return (
+          <CodeBlock
+            config={{
+              ...element.codeConfig,
+              showHeader: element.codeConfig.showHeader ?? true,
+              wrapLines: element.codeConfig.wrapLines ?? false,
+              tabSize: element.codeConfig.tabSize ?? 2,
+              highlightLines: element.codeConfig.highlightLines ?? [],
+              headerTitle: element.codeConfig.headerTitle ?? '',
+            }}
+            onChange={() => {}}
+            width={element.width}
+            height={element.height}
+            isEditing={false}
+          />
+        );
+
+      case 'video':
+        if (!element.mediaConfig?.src) return null;
+        return (
+          <video
+            src={element.mediaConfig.src}
+            controls
+            style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: element.borderRadius || 0 }}
+          />
+        );
+
+      case 'audio':
+        if (!element.mediaConfig?.src) return null;
+        return (
+          <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(0,0,0,0.08)', borderRadius: element.borderRadius || 8 }}>
+            <audio src={element.mediaConfig.src} controls style={{ width: '90%' }} />
+          </div>
+        );
+
       default:
         return null;
     }

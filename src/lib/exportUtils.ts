@@ -503,7 +503,7 @@ export const exportToImages = async (
       const canvas = await html2canvas(slideHtml, {
         scale: 1, useCORS: true, allowTaint: true,
         width: exportWidth, height: exportHeight,
-        backgroundColor: extractHexColor(slides[i].backgroundColor) ? `#${extractHexColor(slides[i].backgroundColor)}` : slides[i].backgroundColor,
+        backgroundColor: slides[i].backgroundColor.includes('gradient') ? '#ffffff' : slides[i].backgroundColor,
         logging: false,
         windowWidth: exportWidth, windowHeight: exportHeight,
         x: 0, y: 0, scrollX: 0, scrollY: 0,

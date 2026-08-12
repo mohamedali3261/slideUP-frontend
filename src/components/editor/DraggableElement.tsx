@@ -711,8 +711,7 @@ export const DraggableElement = ({
   };
 
   const renderContent = () => {
-    const { direction } = useLanguage();
-    
+    // direction is already available from the component-level useLanguage() call above
     switch (element.type) {
       case 'text':
         const baseFontSize = element.fontSize || 16;
@@ -845,8 +844,7 @@ export const DraggableElement = ({
         return <CodeBlock config={element.codeConfig} onChange={(codeConfig) => onUpdate({ codeConfig })} width={element.width} height={element.height} isEditing={isSelected} />;
 
       case 'chart': {
-        if (!element.chartConfig) return null;
-        const { type, data } = element.chartConfig;
+        if (!element.chartConfig) return null;        const { type, data } = element.chartConfig;
         const max = Math.max(...data.map(d => d.value), 1);
         const palette = ['#06b6d4','#ef4444','#f59e0b','#10b981','#3b82f6','#8b5cf6','#ec4899','#84cc16'];
 
@@ -902,6 +900,27 @@ export const DraggableElement = ({
         }
         return null;
       }
+
+      case 'video':
+        if (!element.mediaConfig?.src) return <div className="w-full h-full flex items-center justify-center bg-muted text-muted-foreground text-sm rounded">Video</div>;
+        return (
+          <video
+            src={element.mediaConfig.src}
+            controls={isSelected}
+            autoPlay={element.mediaConfig.autoplay && !isSelected}
+            loop={element.mediaConfig.loop}
+            muted={element.mediaConfig.muted}
+            style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: element.borderRadius || 0 }}
+          />
+        );
+
+      case 'audio':
+        if (!element.mediaConfig?.src) return <div className="w-full h-full flex items-center justify-center bg-muted text-muted-foreground text-sm rounded">Audio</div>;
+        return (
+          <div className="w-full h-full flex items-center justify-center bg-muted/50 rounded" style={{ borderRadius: element.borderRadius || 8 }}>
+            <audio src={element.mediaConfig.src} controls style={{ width: '90%' }} />
+          </div>
+        );
 
       default:
         return null;

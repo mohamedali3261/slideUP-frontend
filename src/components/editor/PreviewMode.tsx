@@ -490,6 +490,20 @@ export const PreviewMode = ({
           }
           return null;
         })()}
+
+        {element.type === 'video' && element.mediaConfig?.src && (
+          <video
+            src={element.mediaConfig.src}
+            controls
+            style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: element.borderRadius || 0 }}
+          />
+        )}
+
+        {element.type === 'audio' && element.mediaConfig?.src && (
+          <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(0,0,0,0.08)', borderRadius: element.borderRadius || 8 }}>
+            <audio src={element.mediaConfig.src} controls style={{ width: '90%' }} />
+          </div>
+        )}
       </div>
     );
   };

@@ -278,6 +278,25 @@ const renderThumbnailElement = (element: SlideElement) => {
     );
   }
 
+  if (element.type === 'video' && element.mediaConfig?.src) {
+    return (
+      <div key={element.id} style={wrapperStyle}>
+        <video
+          src={element.mediaConfig.src}
+          style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: element.borderRadius || 0 }}
+        />
+      </div>
+    );
+  }
+
+  if (element.type === 'audio') {
+    return (
+      <div key={element.id} style={{ ...wrapperStyle, background: 'rgba(0,0,0,0.1)', borderRadius: element.borderRadius || 8, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 10, color: '#666' }}>
+        ♪ Audio
+      </div>
+    );
+  }
+
   return null;
 };
 
