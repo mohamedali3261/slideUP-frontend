@@ -10,6 +10,7 @@ import { SpeakerNotes, SlideNotes } from '@/components/editor/SpeakerNotes';
 import { PreviewMode } from '@/components/editor/PreviewMode';
 import { VersionHistory } from '@/components/editor/VersionHistory';
 import { ActivityPanel } from '@/components/editor/ActivityPanel';
+import { ExportImagesDialog } from '@/components/editor/ExportImagesDialog';
 import SecurityQuestionPrompt from '@/components/SecurityQuestionPrompt';
 import { ElementGroup, alignElements, distributeElements, createGroup } from '@/components/editor/GroupingControls';
 import { CopiedStyle } from '@/components/editor/CopyPasteStyles';
@@ -64,6 +65,7 @@ export const Editor = () => {
   const [selectedElementId, setSelectedElementId] = useState<string | null>(null);
   const [isPresentationMode, setIsPresentationMode] = useState(false);
   const [isPreviewMode, setIsPreviewMode] = useState(false);
+  const [isExportImagesOpen, setIsExportImagesOpen] = useState(false);
   const [showVersionHistory, setShowVersionHistory] = useState(false);
   const [showActivityPanel, setShowActivityPanel] = useState(false);
   const [clipboard, setClipboard] = useState<SlideElement | null>(null);
@@ -1016,9 +1018,14 @@ export const Editor = () => {
     // Check export limit
     const limitCheck = await canExport(format);
     if (!limitCheck.allowed) return;
-    
+
+    if (format === 'images') {
+      // Open the image export dialog instead of exporting directly
+      setIsExportImagesOpen(true);
+      return;
+    }
+
     toast.loading(`Exporting as ${format.toUpperCase()}...`);
-    
     try {
       if (format === 'pptx') {
         await exportToPptx(slides, presentationTitle, canvasWidth, canvasHeight, slideTransitions);
@@ -1026,9 +1033,6 @@ export const Editor = () => {
       } else if (format === 'pdf') {
         await exportToPdf(slides, presentationTitle, canvasWidth, canvasHeight);
         trackAction('export_pdf', autosaveKey, presentationTitle);
-      } else if (format === 'images') {
-        await exportToImages(slides, presentationTitle, canvasWidth, canvasHeight);
-        trackAction('export_images', autosaveKey, presentationTitle);
       }
       toast.dismiss();
       toast.success(`Exported as ${format.toUpperCase()}!`);
@@ -1251,6 +1255,16 @@ export const Editor = () => {
           setIsPreviewMode(false);
           setIsPresentationMode(true);
         }}
+      />
+
+      {/* Export Images Dialog */}
+      <ExportImagesDialog
+        isOpen={isExportImagesOpen}
+        onClose={() => setIsExportImagesOpen(false)}
+        slides={slides}
+        presentationTitle={presentationTitle}
+        canvasWidth={canvasWidth}
+        canvasHeight={canvasHeight}
       />
 
       {/* Toolbar */}

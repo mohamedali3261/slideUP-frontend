@@ -476,38 +476,42 @@ export const exportToPdf = async (slides: SlideTemplate[], title: string, canvas
   pdf.save(`${title}.pdf`);
 };
 
-// Export ALL slides to images
-export const exportToImages = async (slides: SlideTemplate[], title: string, canvasWidth = 960, canvasHeight = 540) => {
-  const exportWidth = EXPORT_WIDTH;
+// Export selected slides to images
+export const exportToImages = async (
+  slides: SlideTemplate[],
+  title: string,
+  canvasWidth = 960,
+  canvasHeight = 540,
+  slideIndices?: number[],                         // which slides to export (undefined = all)
+  onProgress?: (done: number, total: number) => void,
+) => {
+  const exportWidth  = EXPORT_WIDTH;
   const exportHeight = Math.round((exportWidth * canvasHeight) / canvasWidth);
-  for (let i = 0; i < slides.length; i++) {
-    const slideHtml = await renderSlideToHtml(slides[i], i, canvasWidth, canvasHeight);
+  const indices = slideIndices ?? slides.map((_, i) => i);
+  const total   = indices.length;
 
+  for (let n = 0; n < total; n++) {
+    const i = indices[n];
+    const slideHtml = await renderSlideToHtml(slides[i], i, canvasWidth, canvasHeight);
     try {
       const canvas = await html2canvas(slideHtml, {
-        scale: 1,
-        useCORS: true,
-        allowTaint: true,
-        width: exportWidth,
-        height: exportHeight,
-        backgroundColor: slides[i].backgroundColor,
+        scale: 1, useCORS: true, allowTaint: true,
+        width: exportWidth, height: exportHeight,
+        backgroundColor: extractHexColor(slides[i].backgroundColor) ? `#${extractHexColor(slides[i].backgroundColor)}` : slides[i].backgroundColor,
         logging: false,
-        windowWidth: exportWidth,
-        windowHeight: exportHeight,
-        x: 0,
-        y: 0,
-        scrollX: 0,
-        scrollY: 0,
+        windowWidth: exportWidth, windowHeight: exportHeight,
+        x: 0, y: 0, scrollX: 0, scrollY: 0,
       });
       const link = document.createElement('a');
       link.download = `${title}-slide-${i + 1}.png`;
       link.href = canvas.toDataURL('image/png');
       link.click();
-      await new Promise(r => setTimeout(r, 300));
+      await new Promise(r => setTimeout(r, 350));
     } catch (e) {
       console.error('Error rendering slide', i, e);
     }
     slideHtml.remove();
+    onProgress?.(n + 1, total);
   }
 };
 
@@ -873,45 +877,207 @@ const renderElementToHtml = (element: SlideElement, slide: SlideTemplate, scale:
 
 const renderDefaultContentToHtml = (slide: SlideTemplate): HTMLElement => {
   const container = document.createElement('div');
-  container.style.cssText = 'width: 100%; height: 100%; display: flex; flex-direction: column; padding: 80px;';
+  const tc = slide.textColor || '#ffffff';
+  const bg = slide.backgroundColor || '#1e293b';
+  container.style.cssText = `width:100%;height:100%;display:flex;flex-direction:column;padding:80px;color:${tc};box-sizing:border-box;`;
+
+  const esc = (s?: string) => (s || '').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  const colors = ['#8b5cf6','#3b82f6','#10b981','#f59e0b','#ef4444','#06b6d4','#ec4899','#84cc16'];
+  const col = (i:number) => colors[i % colors.length];
 
   switch (slide.type) {
+
     case 'cover':
     case 'thankyou':
-      container.style.cssText += 'align-items: center; justify-content: center; text-align: center;';
+      container.style.cssText += 'align-items:center;justify-content:center;text-align:center;';
       container.innerHTML = `
-        <h1 style="font-size: ${slide.type === 'thankyou' ? '96px' : '80px'}; font-weight: bold; margin: 0;">${slide.title}</h1>
-        ${slide.subtitle ? `<p style="font-size: 36px; margin-top: 24px; opacity: 0.8;">${slide.subtitle}</p>` : ''}
+        <h1 style="font-size:${slide.type==='thankyou'?'96px':'80px'};font-weight:bold;margin:0;">${esc(slide.title)}</h1>
+        ${slide.subtitle?`<p style="font-size:36px;margin-top:24px;opacity:0.8;">${esc(slide.subtitle)}</p>`:''}
       `;
       break;
 
     case 'content':
+    case 'agenda':
       container.innerHTML = `
-        <h2 style="font-size: 56px; font-weight: bold; margin: 0 0 48px 0;">${slide.title}</h2>
-        <div style="flex: 1;">
-          ${(slide.content || []).map(item => `
-            <div style="display: flex; align-items: flex-start; gap: 16px; margin-bottom: 24px; font-size: 28px;">
-              <span style="width: 12px; height: 12px; border-radius: 50%; background: ${slide.textColor}; margin-top: 10px; flex-shrink: 0;"></span>
-              <span>${item}</span>
-            </div>
-          `).join('')}
-        </div>
-      `;
+        <h2 style="font-size:56px;font-weight:bold;margin:0 0 48px 0;">${esc(slide.title)}</h2>
+        <div style="flex:1;">
+          ${(slide.content||[]).map(item=>`
+            <div style="display:flex;align-items:flex-start;gap:16px;margin-bottom:24px;font-size:28px;">
+              <span style="width:12px;height:12px;border-radius:50%;background:${tc};margin-top:10px;flex-shrink:0;"></span>
+              <span>${esc(item)}</span>
+            </div>`).join('')}
+        </div>`;
       break;
 
     case 'section':
-      container.style.cssText += 'align-items: center; justify-content: center; text-align: center;';
+      container.style.cssText += 'align-items:center;justify-content:center;text-align:center;';
       container.innerHTML = `
-        <h1 style="font-size: 72px; font-weight: bold; margin: 0;">${slide.title}</h1>
-        ${slide.subtitle ? `<p style="font-size: 28px; margin-top: 16px; opacity: 0.7;">${slide.subtitle}</p>` : ''}
+        <h1 style="font-size:72px;font-weight:bold;margin:0;">${esc(slide.title)}</h1>
+        ${slide.subtitle?`<p style="font-size:28px;margin-top:16px;opacity:0.7;">${esc(slide.subtitle)}</p>`:''}
       `;
       break;
 
-    default:
-      container.style.cssText += 'align-items: center; justify-content: center; text-align: center;';
+    case 'stats':
+      container.style.cssText += 'align-items:center;';
       container.innerHTML = `
-        <h1 style="font-size: 64px; font-weight: bold; margin: 0;">${slide.title}</h1>
-        ${slide.subtitle ? `<p style="font-size: 28px; margin-top: 16px; opacity: 0.8;">${slide.subtitle}</p>` : ''}
+        <h2 style="font-size:52px;font-weight:bold;margin:0 0 48px 0;text-align:center;width:100%;">${esc(slide.title)}</h2>
+        <div style="display:flex;justify-content:space-around;width:100%;flex-wrap:wrap;gap:32px;">
+          ${(slide.statsData||[]).map((s,i)=>`
+            <div style="text-align:center;flex:1;min-width:160px;">
+              <div style="font-size:80px;font-weight:800;color:${col(i)};line-height:1;">${esc(s.value)}</div>
+              <div style="font-size:24px;margin-top:8px;opacity:0.75;">${esc(s.label)}</div>
+            </div>`).join('')}
+        </div>`;
+      break;
+
+    case 'comparison':
+      container.innerHTML = `
+        <h2 style="font-size:52px;font-weight:bold;margin:0 0 40px 0;text-align:center;">${esc(slide.title)}</h2>
+        <div style="flex:1;display:flex;gap:40px;">
+          ${[{title:slide.comparisonData?.leftTitle||'A',items:slide.comparisonData?.leftItems||[]},
+             {title:slide.comparisonData?.rightTitle||'B',items:slide.comparisonData?.rightItems||(slide.content||[])}]
+            .map((col,i)=>`
+            <div style="flex:1;background:rgba(255,255,255,0.08);border-radius:20px;padding:40px;">
+              <h3 style="font-size:36px;font-weight:700;margin:0 0 24px 0;color:${colors[i*2]};">${esc(col.title)}</h3>
+              ${col.items.map(item=>`
+                <div style="display:flex;align-items:flex-start;gap:12px;margin-bottom:16px;font-size:22px;">
+                  <span style="color:${colors[i*2]};font-size:28px;line-height:1;">✓</span>
+                  <span>${esc(item)}</span>
+                </div>`).join('')}
+            </div>`).join('')}
+        </div>`;
+      break;
+
+    case 'timeline':
+      container.innerHTML = `
+        <h2 style="font-size:52px;font-weight:bold;margin:0 0 40px 0;">${esc(slide.title)}</h2>
+        <div style="flex:1;display:flex;flex-direction:column;gap:24px;overflow:hidden;">
+          ${(slide.timelineData||[]).map((t,i)=>`
+            <div style="display:flex;align-items:flex-start;gap:24px;">
+              <div style="flex-shrink:0;width:100px;text-align:right;">
+                <span style="font-size:22px;font-weight:700;color:${col(i)};">${esc(t.year)}</span>
+              </div>
+              <div style="width:16px;flex-shrink:0;display:flex;flex-direction:column;align-items:center;padding-top:4px;">
+                <div style="width:16px;height:16px;border-radius:50%;background:${col(i)};"></div>
+                <div style="flex:1;width:2px;background:rgba(255,255,255,0.2);margin-top:4px;"></div>
+              </div>
+              <div style="flex:1;">
+                <div style="font-size:26px;font-weight:600;">${esc(t.title)}</div>
+                <div style="font-size:20px;opacity:0.7;margin-top:4px;">${esc(t.description)}</div>
+              </div>
+            </div>`).join('')}
+        </div>`;
+      break;
+
+    case 'team':
+      container.innerHTML = `
+        <h2 style="font-size:52px;font-weight:bold;margin:0 0 48px 0;text-align:center;">${esc(slide.title)}</h2>
+        <div style="display:flex;justify-content:center;gap:40px;flex-wrap:wrap;">
+          ${(slide.teamData||[]).map((m,i)=>`
+            <div style="text-align:center;width:200px;">
+              <div style="width:120px;height:120px;border-radius:50%;margin:0 auto 16px;overflow:hidden;background:${col(i)};">
+                ${m.image?`<img src="${m.image}" style="width:100%;height:100%;object-fit:cover;" crossorigin="anonymous"/>`
+                         :`<div style="width:100%;height:100%;display:flex;align-items:center;justify-content:center;font-size:48px;font-weight:bold;color:#fff;">${(m.name||'?')[0]}</div>`}
+              </div>
+              <div style="font-size:24px;font-weight:600;">${esc(m.name)}</div>
+              <div style="font-size:18px;opacity:0.7;margin-top:4px;">${esc(m.role)}</div>
+            </div>`).join('')}
+        </div>`;
+      break;
+
+    case 'features':
+      container.innerHTML = `
+        <h2 style="font-size:52px;font-weight:bold;margin:0 0 40px 0;text-align:center;">${esc(slide.title)}</h2>
+        <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:32px;flex:1;">
+          ${(slide.featuresData||[]).map((f,i)=>`
+            <div style="background:rgba(255,255,255,0.07);border-radius:16px;padding:32px;text-align:center;">
+              <div style="font-size:48px;margin-bottom:16px;">${esc(f.icon)}</div>
+              <div style="font-size:24px;font-weight:600;margin-bottom:8px;">${esc(f.title)}</div>
+              <div style="font-size:18px;opacity:0.7;">${esc(f.description)}</div>
+            </div>`).join('')}
+        </div>`;
+      break;
+
+    case 'process':
+      container.innerHTML = `
+        <h2 style="font-size:52px;font-weight:bold;margin:0 0 40px 0;text-align:center;">${esc(slide.title)}</h2>
+        <div style="display:flex;align-items:flex-start;gap:0;flex:1;">
+          ${(slide.processData||[]).map((p,i,arr)=>`
+            <div style="flex:1;text-align:center;position:relative;padding:0 16px;">
+              <div style="width:72px;height:72px;border-radius:50%;background:${col(i)};display:flex;align-items:center;justify-content:center;font-size:32px;font-weight:800;margin:0 auto 16px;">${esc(p.step)}</div>
+              ${i<arr.length-1?`<div style="position:absolute;top:36px;left:calc(50% + 36px);right:calc(-50% + 36px);height:2px;background:rgba(255,255,255,0.2);"></div>`:''}
+              <div style="font-size:22px;font-weight:600;margin-bottom:8px;">${esc(p.title)}</div>
+              <div style="font-size:16px;opacity:0.7;">${esc(p.description)}</div>
+            </div>`).join('')}
+        </div>`;
+      break;
+
+    case 'pricing':
+      container.innerHTML = `
+        <h2 style="font-size:52px;font-weight:bold;margin:0 0 40px 0;text-align:center;">${esc(slide.title)}</h2>
+        <div style="display:flex;justify-content:center;gap:32px;flex:1;align-items:stretch;">
+          ${(slide.pricingData||[]).map((p,i)=>`
+            <div style="flex:1;max-width:320px;background:${p.highlighted?col(i):'rgba(255,255,255,0.07)'};border-radius:20px;padding:40px;text-align:center;${p.highlighted?'transform:scale(1.05);box-shadow:0 20px 40px rgba(0,0,0,0.3);':''}">
+              <div style="font-size:28px;font-weight:600;margin-bottom:8px;">${esc(p.name)}</div>
+              <div style="font-size:56px;font-weight:800;margin-bottom:24px;">${esc(p.price)}</div>
+              <div style="text-align:left;">
+                ${p.features.map(f=>`<div style="display:flex;align-items:center;gap:10px;margin-bottom:12px;font-size:18px;">
+                  <span style="color:${p.highlighted?'#fff':col(i)};">✓</span><span>${esc(f)}</span>
+                </div>`).join('')}
+              </div>
+            </div>`).join('')}
+        </div>`;
+      break;
+
+    case 'gallery':
+      container.innerHTML = `
+        <h2 style="font-size:52px;font-weight:bold;margin:0 0 40px 0;text-align:center;">${esc(slide.title)}</h2>
+        <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:16px;flex:1;">
+          ${(slide.galleryData||[]).slice(0,6).map(g=>`
+            <div style="border-radius:12px;overflow:hidden;position:relative;">
+              <img src="${g.image}" style="width:100%;height:100%;object-fit:cover;" crossorigin="anonymous"/>
+              ${g.caption?`<div style="position:absolute;bottom:0;left:0;right:0;padding:8px 12px;background:rgba(0,0,0,0.5);font-size:16px;">${esc(g.caption)}</div>`:''}
+            </div>`).join('')}
+        </div>`;
+      break;
+
+    case 'contact':
+      container.style.cssText += 'align-items:center;justify-content:center;text-align:center;';
+      container.innerHTML = `
+        <h2 style="font-size:56px;font-weight:bold;margin:0 0 48px 0;">${esc(slide.title)}</h2>
+        ${slide.contactData?.email?`<div style="font-size:28px;margin-bottom:16px;opacity:0.9;">✉ ${esc(slide.contactData.email)}</div>`:''}
+        ${slide.contactData?.phone?`<div style="font-size:28px;margin-bottom:16px;opacity:0.9;">📞 ${esc(slide.contactData.phone)}</div>`:''}
+        ${slide.contactData?.address?`<div style="font-size:24px;margin-bottom:16px;opacity:0.7;">📍 ${esc(slide.contactData.address)}</div>`:''}
+        <div style="display:flex;justify-content:center;gap:24px;margin-top:24px;flex-wrap:wrap;">
+          ${(slide.contactData?.social||[]).map(s=>`
+            <span style="font-size:22px;opacity:0.8;">${esc(s.platform)}: ${esc(s.url)}</span>`).join('')}
+        </div>`;
+      break;
+
+    case 'quote':
+      container.style.cssText += 'align-items:center;justify-content:center;text-align:center;';
+      container.innerHTML = `
+        <div style="font-size:80px;opacity:0.3;line-height:0.5;margin-bottom:16px;">"</div>
+        <p style="font-size:40px;font-style:italic;max-width:1400px;line-height:1.4;margin:0;">${esc(slide.title)}</p>
+        ${slide.subtitle?`<p style="font-size:28px;margin-top:32px;opacity:0.7;">— ${esc(slide.subtitle)}</p>`:''}
+      `;
+      break;
+
+    case 'chart':
+      container.style.cssText += 'align-items:center;justify-content:center;';
+      container.innerHTML = `
+        <h2 style="font-size:52px;font-weight:bold;margin:0 0 40px 0;text-align:center;width:100%;">${esc(slide.title)}</h2>
+        <div style="flex:1;display:flex;align-items:flex-end;justify-content:space-around;width:100%;padding:0 40px;">
+          ${[65,80,45,90,70].map((h,i)=>`
+            <div style="flex:1;max-width:120px;background:${col(i)};border-radius:8px 8px 0 0;height:${h}%;opacity:0.85;"></div>`).join('')}
+        </div>`;
+      break;
+
+    default:
+      container.style.cssText += 'align-items:center;justify-content:center;text-align:center;';
+      container.innerHTML = `
+        <h1 style="font-size:64px;font-weight:bold;margin:0;">${esc(slide.title)}</h1>
+        ${slide.subtitle?`<p style="font-size:28px;margin-top:16px;opacity:0.8;">${esc(slide.subtitle)}</p>`:''}
       `;
       break;
   }
