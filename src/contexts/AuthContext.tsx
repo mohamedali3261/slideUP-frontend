@@ -1,11 +1,10 @@
 import { createContext, useContext, useState, useEffect, ReactNode } from 'react';
-import { loginUser, logoutUser, getCurrentUser, getUserFull } from '@/lib/storage';
+import { loginUser, logoutUser, getCurrentUser } from '@/lib/storage';
 
 interface User {
   id: number;
   username: string;
   role: 'user' | 'admin';
-  security_question?: string;
 }
 
 interface AuthContextType {
@@ -27,12 +26,10 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     // Auto-login with default user if no user exists
     const currentUser = getCurrentUser();
     if (currentUser) {
-      const fullUser = getUserFull(currentUser.id);
       setUser({
         id: currentUser.id,
         username: currentUser.username,
         role: currentUser.role,
-        security_question: fullUser?.securityQuestion,
       });
       setToken(btoa(JSON.stringify(currentUser)));
     } else {
@@ -40,12 +37,10 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       const defaultUsername = 'guest';
       const result = loginUser(defaultUsername, '');
       if (!('error' in result)) {
-        const fullUser = getUserFull(result.user.id);
         setUser({
           id: result.user.id,
           username: result.user.username,
           role: result.user.role,
-          security_question: fullUser?.securityQuestion,
         });
         setToken(result.token);
       }
@@ -58,12 +53,10 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     if ('error' in result) {
       throw new Error(result.error);
     }
-    const fullUser = getUserFull(result.user.id);
     setUser({
       id: result.user.id,
       username: result.user.username,
       role: result.user.role,
-      security_question: fullUser?.securityQuestion,
     });
     setToken(result.token);
   };

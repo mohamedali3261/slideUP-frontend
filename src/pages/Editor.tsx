@@ -11,7 +11,6 @@ import { PreviewMode } from '@/components/editor/PreviewMode';
 import { VersionHistory } from '@/components/editor/VersionHistory';
 import { ActivityPanel } from '@/components/editor/ActivityPanel';
 import { ExportImagesDialog } from '@/components/editor/ExportImagesDialog';
-import SecurityQuestionPrompt from '@/components/SecurityQuestionPrompt';
 import { ElementGroup, alignElements, distributeElements, createGroup } from '@/components/editor/GroupingControls';
 import { CopiedStyle } from '@/components/editor/CopyPasteStyles';
 import { SlideTransition } from '@/components/editor/AnimationControls';
@@ -1685,9 +1684,6 @@ export const Editor = () => {
           </div>
         </div>
       )}
-
-      {/* Security Question Prompt */}
-      <SecurityQuestionPrompt />
 
       {/* Presentation Name Dialog */}
       {showNameDialog && (

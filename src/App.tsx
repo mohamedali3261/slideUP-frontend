@@ -12,8 +12,6 @@ import Templates from "./pages/Templates";
 import Editor from "./pages/Editor";
 import Dashboard from "./pages/Dashboard";
 import Login from "./pages/Login";
-import ForgotPassword from "./pages/ForgotPassword";
-import SetSecurityQuestion from "./pages/SetSecurityQuestion";
 import AdminDashboard from "./pages/AdminDashboard";
 import NotFound from "./pages/NotFound";
 

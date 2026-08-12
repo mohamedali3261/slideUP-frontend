@@ -5,8 +5,6 @@ const KEYS = {
   USERS: 'slideup_users',
   CURRENT_USER: 'slideup_current_user',
   PRESENTATIONS: 'slideup_presentations',
-  SECURITY_ANSWERS: 'slideup_security_answers',
-  SECURITY_ATTEMPTS: 'slideup_security_attempts',
   VERSIONS: 'slideup_versions',
 };
 
@@ -36,8 +34,6 @@ export interface StoredUser {
   username: string;
   password: string;
   role: 'user' | 'admin';
-  securityQuestion?: string;
-  securityAnswer?: string;
   createdAt: string;
 }
 
@@ -96,10 +92,6 @@ export function getCurrentUser(): StoredCurrentUser | null {
   return { id: data.id, username: data.username, role: data.role as 'user' | 'admin' };
 }
 
-export function getUserFull(userId: number): StoredUser | undefined {
-  return getUsers().find(u => u.id === userId);
-}
-
 export function getToken(): string | null {
   const data = getStore<{ token?: string } | null>(KEYS.CURRENT_USER, null);
   return data?.token || null;
@@ -107,52 +99,6 @@ export function getToken(): string | null {
 
 export function logoutUser() {
   localStorage.removeItem(KEYS.CURRENT_USER);
-}
-
-export function updateUserSecurityQuestion(userId: number, question: string, answer: string) {
-  const users = getUsers();
-  const idx = users.findIndex(u => u.id === userId);
-  if (idx >= 0) {
-    users[idx].securityQuestion = question;
-    users[idx].securityAnswer = answer.trim().toLowerCase();
-    saveUsers(users);
-  }
-}
-
-export function getSecurityQuestion(username: string): { question: string } | { error: string } {
-  const user = getUsers().find(u => u.username === username);
-  if (!user) return { error: 'اسم المستخدم غير موجود' };
-  if (!user.securityQuestion) return { error: 'لم يتم تعيين سؤال أمان لهذا الحساب' };
-  return { question: user.securityQuestion };
-}
-
-export function verifySecurityAnswer(username: string, answer: string): { success: boolean; error?: string } {
-  const user = getUsers().find(u => u.username === username);
-  if (!user) return { success: false, error: 'اسم المستخدم غير موجود' };
-  if (!user.securityAnswer) return { success: false, error: 'لم يتم تعيين سؤال أمان لهذا الحساب' };
-
-  const attempts = getStore<{ username: string; timestamp: number }[]>(KEYS.SECURITY_ATTEMPTS, []);
-  const recentAttempts = attempts.filter(a => a.username === username && (Date.now() - a.timestamp) < 30 * 60 * 1000);
-  if (recentAttempts.length >= 3) {
-    return { success: false, error: 'تم حظر المحاولات لمدة 30 دقيقة بسبب 3 محاولات فاشلة متتالية' };
-  }
-
-  if (answer.trim().toLowerCase() !== user.securityAnswer) {
-    attempts.push({ username, timestamp: Date.now() });
-    setStore(KEYS.SECURITY_ATTEMPTS, attempts);
-    return { success: false, error: `الإجابة غير صحيحة. المحاولات المتبقية: ${3 - recentAttempts.length - 1}` };
-  }
-
-  return { success: true };
-}
-
-export function resetPassword(username: string, newPassword: string): { success: boolean; error?: string } {
-  const users = getUsers();
-  const idx = users.findIndex(u => u.username === username);
-  if (idx < 0) return { success: false, error: 'اسم المستخدم غير موجود' };
-  users[idx].password = newPassword;
-  saveUsers(users);
-  return { success: true };
 }
 
 // ==================== PRESENTATIONS ====================
