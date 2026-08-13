@@ -626,12 +626,21 @@ const renderElementToHtml = (element: SlideElement, slide: SlideTemplate, scale:
       const scaledLetterSpacing = (element.letterSpacing || 0) * scale;
       const scaledPadding    = 8 * scale;
 
+      // Convert named fontWeight to numeric value for CSS
+      const fontWeightMap: Record<string, number> = {
+        light: 300, normal: 400, medium: 500,
+        semibold: 600, bold: 700, extrabold: 800,
+      };
+      const fontWeightVal = element.fontWeight
+        ? (fontWeightMap[element.fontWeight] ?? element.fontWeight)
+        : 400;
+
       const bgValue = element.backgroundColor || '';
       const hasBg   = bgValue && bgValue !== 'transparent';
 
       el.style.cssText += `
         font-size: ${scaledFontSize}px;
-        font-weight: ${element.fontWeight || 'normal'};
+        font-weight: ${fontWeightVal};
         font-style: ${element.fontStyle || 'normal'};
         text-align: ${element.textAlign || 'left'};
         color: ${element.color || slide.textColor};
@@ -668,6 +677,25 @@ const renderElementToHtml = (element: SlideElement, slide: SlideTemplate, scale:
       const scaledBorderRadius = (element.borderRadius || 0) * scale;
       const bgColor = element.backgroundColor || '#3b82f6';
       const isGradientBg = bgColor.includes('gradient');
+
+      // Line shape — render as a thin bar in the correct orientation
+      if (element.shapeType === 'line') {
+        const isVertical = element.height > element.width;
+        if (isVertical) {
+          // Vertical line: place a centered bar
+          el.style.cssText += `display:flex;align-items:center;justify-content:center;background:transparent;`;
+          const bar = document.createElement('div');
+          bar.style.cssText = `width:${scaledWidth}px;height:100%;background-color:${bgColor};`;
+          el.appendChild(bar);
+        } else {
+          // Horizontal line: place a centered bar
+          el.style.cssText += `display:flex;align-items:center;justify-content:center;background:transparent;`;
+          const bar = document.createElement('div');
+          bar.style.cssText = `width:100%;height:${scaledHeight}px;background-color:${bgColor};`;
+          el.appendChild(bar);
+        }
+        break;
+      }
 
       el.style.cssText += `
         ${isGradientBg ? `background: ${bgColor};` : `background-color: ${bgColor};`}
@@ -768,8 +796,11 @@ const renderElementToHtml = (element: SlideElement, slide: SlideTemplate, scale:
     case 'icon': {
       if (element.iconConfig) {
         const { name, color, size, strokeWidth, backgroundColor: iconBg, backgroundRadius, rotation: iconRot, customImageUrl } = element.iconConfig;
-        const scaledSize = size * scale;
-        const scaledPad  = iconBg ? 12 * scale : 0;
+        // Use element dimensions to compute the rendered icon size for PDF/image export
+        // The icon should fill ~80% of the element (matching DraggableElement & PreviewMode)
+        const elementSizePx = Math.min(scaledWidth, scaledHeight);
+        const scaledSize    = iconBg ? elementSizePx * 0.6 : elementSizePx * 0.8;
+        const scaledPad  = iconBg ? elementSizePx * 0.1 : 0;
         const scaledBgR  = (backgroundRadius || 0) * scale;
 
         el.style.cssText += `
