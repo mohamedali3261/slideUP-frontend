@@ -649,6 +649,8 @@ const renderElementToHtml = (element: SlideElement, slide: SlideTemplate, scale:
         letter-spacing: ${scaledLetterSpacing}px;
         text-decoration: ${element.textDecoration || 'none'};
         text-transform: ${element.textTransform || 'none'};
+        direction: ${/[\u0600-\u06FF]/.test(element.content || '') ? 'rtl' : 'ltr'};
+        unicode-bidi: embed;
         ${element.textShadow ? `text-shadow: ${element.textShadow};` : ''}
         ${hasBg ? `background: ${bgValue};` : ''}
         display: flex;
@@ -795,13 +797,20 @@ const renderElementToHtml = (element: SlideElement, slide: SlideTemplate, scale:
 
     case 'icon': {
       if (element.iconConfig) {
-        const { name, color, size, strokeWidth, backgroundColor: iconBg, backgroundRadius, rotation: iconRot, customImageUrl } = element.iconConfig;
-        // Use element dimensions to compute the rendered icon size for PDF/image export
-        // The icon should fill ~80% of the element (matching DraggableElement & PreviewMode)
-        const elementSizePx = Math.min(scaledWidth, scaledHeight);
-        const scaledSize    = iconBg ? elementSizePx * 0.6 : elementSizePx * 0.8;
-        const scaledPad  = iconBg ? elementSizePx * 0.1 : 0;
-        const scaledBgR  = (backgroundRadius || 0) * scale;
+        const { name, color, size: cfgSize, strokeWidth, backgroundColor: iconBg, backgroundRadius, rotation: iconRot, customImageUrl } = element.iconConfig;
+        
+        // Compute the icon size using the same ratio as in the editor:
+        // iconConfig.size / Math.min(element.width, element.height) gives the fill ratio
+        const origElementMin = Math.min(element.width, element.height);
+        const fillRatio = origElementMin > 0 ? cfgSize / origElementMin : 0.8;
+        
+        const scaledElMin   = Math.min(scaledWidth, scaledHeight);
+        const containerSize = scaledElMin;
+        const iconSize      = scaledElMin * fillRatio;
+        
+        const scaledBgR = iconBg && backgroundRadius
+          ? Math.min(backgroundRadius * (scaledElMin / origElementMin), containerSize / 2)
+          : 0;
 
         el.style.cssText += `
           display: flex; align-items: center; justify-content: center;
@@ -811,15 +820,17 @@ const renderElementToHtml = (element: SlideElement, slide: SlideTemplate, scale:
         const iconContainer = document.createElement('div');
         iconContainer.style.cssText = `
           display: flex; align-items: center; justify-content: center;
+          width: ${containerSize}px; height: ${containerSize}px;
           background-color: ${iconBg || 'transparent'};
           border-radius: ${scaledBgR}px;
-          padding: ${scaledPad}px;
+          flex-shrink: 0;
+          overflow: hidden;
         `;
 
         if (customImageUrl) {
           const img = document.createElement('img');
           img.src = customImageUrl;
-          img.style.cssText = `width: ${scaledSize}px; height: ${scaledSize}px; object-fit: contain;`;
+          img.style.cssText = `width: ${iconSize}px; height: ${iconSize}px; object-fit: contain;`;
           iconContainer.appendChild(img);
         } else {
           const icons = LucideIcons as unknown as Record<string, React.ComponentType<any>>;
@@ -827,7 +838,7 @@ const renderElementToHtml = (element: SlideElement, slide: SlideTemplate, scale:
           if (IconComponent) {
             try {
               const svgString = renderToStaticMarkup(
-                createElement(IconComponent, { width: scaledSize, height: scaledSize, color, strokeWidth })
+                createElement(IconComponent, { width: iconSize, height: iconSize, color, strokeWidth })
               );
               iconContainer.innerHTML = svgString;
             } catch (e) {
@@ -915,8 +926,7 @@ const renderElementToHtml = (element: SlideElement, slide: SlideTemplate, scale:
 const renderDefaultContentToHtml = (slide: SlideTemplate): HTMLElement => {
   const container = document.createElement('div');
   const tc = slide.textColor || '#ffffff';
-  const bg = slide.backgroundColor || '#1e293b';
-  container.style.cssText = `width:100%;height:100%;display:flex;flex-direction:column;padding:80px;color:${tc};box-sizing:border-box;`;
+  container.style.cssText = `width:100%;height:100%;display:flex;flex-direction:column;padding:80px;color:${tc};box-sizing:border-box;direction:rtl;unicode-bidi:embed;`;
 
   const esc = (s?: string) => (s || '').replace(/</g,'&lt;').replace(/>/g,'&gt;');
   const colors = ['#8b5cf6','#3b82f6','#10b981','#f59e0b','#ef4444','#06b6d4','#ec4899','#84cc16'];
