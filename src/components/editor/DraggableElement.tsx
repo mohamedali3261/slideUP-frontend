@@ -741,7 +741,7 @@ export const DraggableElement = ({
         return isEditing ? (
           <div 
             className="relative"
-            style={{ userSelect: 'text', width: 'max-content', maxWidth: 'none', minWidth: 120, height: 'auto' }}
+            style={{ userSelect: 'text', width: Math.max(element.width + 2, 120), height: 'auto' }}
           >
             <textarea
               ref={textareaRef}
@@ -766,8 +766,8 @@ export const DraggableElement = ({
                 }
                 handleBlur();
               }}
-              className="bg-transparent border border-dashed border-primary/40 rounded outline-none p-2 resize-none"
-              style={{ ...textStyles, userSelect: 'text', cursor: 'text', overflow: 'hidden', minHeight: 24 }}
+              className="bg-transparent border border-dashed border-primary/40 rounded outline-none resize-none block"
+              style={{ ...textStyles, userSelect: 'text', cursor: 'text', overflow: 'hidden', minHeight: 24, width: '100%', boxSizing: 'border-box', padding: '4px 8px' }}
             />
             {/* Paste Button */}
             <button
