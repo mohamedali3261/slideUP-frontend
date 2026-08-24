@@ -52,6 +52,7 @@ interface ImportPDFProps {
   open?: boolean;
   onOpenChange?: (open: boolean) => void;
   hideTrigger?: boolean;
+  initialFile?: File | null;
 }
 
 interface ImportStatus {
@@ -164,7 +165,7 @@ const parseColorArgs = (args: any[]): string | null => {
   return null;
 };
 
-export const ImportPDF = ({ onImport, open, onOpenChange, hideTrigger }: ImportPDFProps) => {
+export const ImportPDF = ({ onImport, open, onOpenChange, hideTrigger, initialFile }: ImportPDFProps) => {
   const { language } = useLanguage();
   const [internalOpen, setInternalOpen] = useState(false);
   const isControlled = open !== undefined;
@@ -1004,6 +1005,16 @@ export const ImportPDF = ({ onImport, open, onOpenChange, hideTrigger }: ImportP
   }, [handleFileSelect]);
 
   const busy = status.stage === 'reading' || status.stage === 'rendering';
+
+  // Auto-load a file handed over by the unified import button
+  useEffect(() => {
+    if (isOpen && initialFile) {
+      setStatus({ stage: 'idle', progress: 0, message: '' });
+      setPreviewSlides([]);
+      setPreviewUrls([]);
+      setSelectedFile(initialFile);
+    }
+  }, [isOpen, initialFile]);
 
   return (
     <Dialog open={isOpen} onOpenChange={handleOpenChange}>

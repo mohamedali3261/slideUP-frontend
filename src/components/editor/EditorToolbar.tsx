@@ -39,8 +39,7 @@ import { AutosaveIndicator } from './AutosaveIndicator';
 import { GroupingControls, ElementGroup } from './GroupingControls';
 import { CopyPasteStyles, CopiedStyle } from './CopyPasteStyles';
 import { SmartLayouts } from './SmartLayouts';
-import { ImportPPTX } from './ImportPPTX';
-import { ImportPDF } from './ImportPDF';
+import { ImportFile } from './ImportFile';
 import { SlideTemplate } from '@/data/templates';
 import { NotificationBell } from '@/components/NotificationBell';
 import { SupportDialog } from '@/components/SupportDialog';
@@ -190,17 +189,10 @@ export const EditorToolbar = ({
                   {language === 'ar' ? 'سجل الإصدارات' : 'Version History'}
                 </DropdownMenuItem>
               )}
-              {onImportPPTX && (
-                <DropdownMenuItem onSelect={(e) => e.preventDefault()} className="text-xs rounded cursor-pointer p-0">
-                  <div className="w-full px-2 py-1.5">
-                    <ImportPPTX onImport={onImportPPTX} />
-                  </div>
-                </DropdownMenuItem>
-              )}
               {onImportPDF && (
                 <DropdownMenuItem onSelect={(e) => e.preventDefault()} className="text-xs rounded cursor-pointer p-0">
                   <div className="w-full px-2 py-1.5">
-                    <ImportPDF onImport={onImportPDF} />
+                    <ImportFile onImport={onImportPDF} />
                   </div>
                 </DropdownMenuItem>
               )}
@@ -638,11 +630,8 @@ export const EditorToolbar = ({
         <div className="w-px h-5 bg-border/50" />
 
         {/* Import */}
-        {onImportPPTX && (
-          <ImportPPTX onImport={onImportPPTX} />
-        )}
         {onImportPDF && (
-          <ImportPDF onImport={onImportPDF} />
+          <ImportFile onImport={onImportPDF} />
         )}
 
         {/* Preview Button */}

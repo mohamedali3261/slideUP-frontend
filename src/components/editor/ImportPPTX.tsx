@@ -1,4 +1,4 @@
-import { useState, useCallback, useRef } from 'react';
+import { useState, useCallback, useRef, useEffect } from 'react';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
@@ -50,6 +50,7 @@ interface ImportPPTXProps {
   open?: boolean;
   onOpenChange?: (open: boolean) => void;
   hideTrigger?: boolean;
+  initialFile?: File | null;
 }
 
 interface ImportStatus {
@@ -323,9 +324,11 @@ const PreviewThumbnail = ({ slide, index, canvasWidth, canvasHeight }: { slide: 
   );
 };
 
-export const ImportPPTX = ({ onImport }: ImportPPTXProps) => {
+export const ImportPPTX = ({ onImport, open, onOpenChange, hideTrigger, initialFile }: ImportPPTXProps) => {
   const { language } = useLanguage();
-  const [isOpen, setIsOpen] = useState(false);
+  const [internalOpen, setIsOpen] = useState(false);
+  const isControlled = open !== undefined;
+  const isOpen = isControlled ? open : internalOpen;
   const [status, setStatus] = useState<ImportStatus>({ stage: 'idle', progress: 0, message: '' });
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [previewSlides, setPreviewSlides] = useState<SlideTemplate[]>([]);
@@ -840,15 +843,6 @@ export const ImportPPTX = ({ onImport }: ImportPPTXProps) => {
     }
   }, [parsePPTX, language]);
 
-  const handleImport = useCallback(() => {
-    if (previewSlides.length === 0) return;
-    const title = selectedFile?.name.replace(/\.pptx?$/i, '') || 'Imported';
-    onImport(previewSlides, title, importedSize);
-    toast.success(language === 'ar' ? `تم استيراد ${previewSlides.length} شرائح!` : `Imported ${previewSlides.length} slides!`);
-    setIsOpen(false);
-    resetState();
-  }, [previewSlides, selectedFile, onImport, importedSize, language]);
-
   const resetState = useCallback(() => {
     setSelectedFile(null);
     setStatus({ stage: 'idle', progress: 0, message: '' });
@@ -856,6 +850,28 @@ export const ImportPPTX = ({ onImport }: ImportPPTXProps) => {
     setImportedSize({ width: CANVAS_W, height: Math.round(CANVAS_W * 6858000 / 12192000) });
     if (fileInputRef.current) fileInputRef.current.value = '';
   }, []);
+
+  const handleOpenChange = useCallback((next: boolean) => {
+    if (!isControlled) setIsOpen(next);
+    onOpenChange?.(next);
+    if (!next) resetState();
+  }, [isControlled, onOpenChange, resetState]);
+
+  const handleImport = useCallback(() => {
+    if (previewSlides.length === 0) return;
+    const title = selectedFile?.name.replace(/\.pptx?$/i, '') || 'Imported';
+    onImport(previewSlides, title, importedSize);
+    toast.success(language === 'ar' ? `تم استيراد ${previewSlides.length} شرائح!` : `Imported ${previewSlides.length} slides!`);
+    handleOpenChange(false);
+    resetState();
+  }, [previewSlides, selectedFile, onImport, importedSize, language, handleOpenChange, resetState]);
+
+  // Auto-load a file handed over by the unified import button
+  useEffect(() => {
+    if (isOpen && initialFile) {
+      handleFileSelect({ target: { files: [initialFile] } } as unknown as React.ChangeEvent<HTMLInputElement>);
+    }
+  }, [isOpen, initialFile, handleFileSelect]);
 
   const handleDrop = useCallback((e: React.DragEvent) => {
     e.preventDefault();
@@ -869,13 +885,15 @@ export const ImportPPTX = ({ onImport }: ImportPPTXProps) => {
   }, [handleFileSelect]);
 
   return (
-    <Dialog open={isOpen} onOpenChange={(open) => { setIsOpen(open); if (!open) resetState(); }}>
-      <DialogTrigger asChild>
-        <Button variant="outline" size="sm" className="gap-2">
-          <UploadIcon />
-          {language === 'ar' ? 'استيراد PPTX' : 'Import PPTX'}
-        </Button>
-      </DialogTrigger>
+    <Dialog open={isOpen} onOpenChange={handleOpenChange}>
+      {!hideTrigger && (
+        <DialogTrigger asChild>
+          <Button variant="outline" size="sm" className="gap-2">
+            <UploadIcon />
+            {language === 'ar' ? 'استيراد PPTX' : 'Import PPTX'}
+          </Button>
+        </DialogTrigger>
+      )}
       <DialogContent className="max-w-xl w-[95vw] max-h-[85vh] bg-white dark:bg-gray-900 shadow-2xl border-0 rounded-2xl p-0 overflow-hidden flex flex-col">
         <DialogHeader className="px-6 pt-6 pb-4 border-b bg-gradient-to-r from-emerald-50 to-teal-50 dark:from-emerald-950/30 dark:to-teal-950/30 flex-shrink-0">
           <DialogTitle className="text-lg font-semibold text-gray-800 dark:text-gray-100 pr-8">
@@ -995,7 +1013,7 @@ export const ImportPPTX = ({ onImport }: ImportPPTXProps) => {
         <DialogFooter className="px-5 py-4 bg-gray-50 dark:bg-gray-800/50 border-t border-gray-100 dark:border-gray-800 flex-shrink-0 gap-2">
           <Button 
             variant="outline" 
-            onClick={() => { setIsOpen(false); resetState(); }}
+            onClick={() => handleOpenChange(false)}
             className="px-4 border-gray-300 dark:border-gray-600 hover:bg-gray-100 dark:hover:bg-gray-700"
           >
             {language === 'ar' ? 'إلغاء' : 'Cancel'}
