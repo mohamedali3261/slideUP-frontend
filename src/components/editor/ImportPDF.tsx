@@ -80,6 +80,7 @@ interface RawTextItem {
   fontFamily?: string;
   fontWeight?: SlideElement['fontWeight'];
   fontStyle?: SlideElement['fontStyle'];
+  color?: string;
 }
 
 interface TextLine {
@@ -93,6 +94,7 @@ interface TextLine {
   fontFamily?: string;
   fontWeight?: SlideElement['fontWeight'];
   fontStyle?: SlideElement['fontStyle'];
+  color?: string;
 }
 
 const inferFontWeight = (name: string): SlideElement['fontWeight'] => {
@@ -182,16 +184,34 @@ export const ImportPDF = ({ onImport, open, onOpenChange, hideTrigger }: ImportP
     const sorted = [...items].sort((a, b) => b.yBaseline - a.yBaseline || a.x - b.x);
 
     // group into visual lines by baseline proximity
-    const rawLines: RawTextItem[][] = [];
+    const baseGroups: RawTextItem[][] = [];
     let current: RawTextItem[] = [];
     for (const item of sorted) {
       if (current.length === 0) { current = [item]; continue; }
       const ref = current[current.length - 1];
       const tol = Math.max(ref.fs, item.fs) * 0.45;
       if (Math.abs(item.yBaseline - ref.yBaseline) <= tol) current.push(item);
-      else { rawLines.push(current); current = [item]; }
+      else { baseGroups.push(current); current = [item]; }
     }
-    if (current.length > 0) rawLines.push(current);
+    if (current.length > 0) baseGroups.push(current);
+
+    // split baseline groups at large horizontal gaps -> separate columns stay separate
+    const rawLines: RawTextItem[][] = [];
+    for (const group of baseGroups) {
+      group.sort((a, b) => a.x - b.x);
+      let cur: RawTextItem[] = [group[0]];
+      for (let k = 1; k < group.length; k++) {
+        const prev = cur[cur.length - 1];
+        const gap = group[k].x - (prev.x + prev.w);
+        if (gap > Math.max(prev.fs, group[k].fs) * 3) {
+          rawLines.push(cur);
+          cur = [group[k]];
+        } else {
+          cur.push(group[k]);
+        }
+      }
+      if (cur.length > 0) rawLines.push(cur);
+    }
 
     const lines: TextLine[] = [];
     rawLines.forEach(lineItems => {
@@ -227,6 +247,7 @@ export const ImportPDF = ({ onImport, open, onOpenChange, hideTrigger }: ImportP
         fontFamily: dominant.fontFamily,
         fontWeight: dominant.fontWeight,
         fontStyle: dominant.fontStyle,
+        color: dominant.color,
       });
     });
 
@@ -235,6 +256,7 @@ export const ImportPDF = ({ onImport, open, onOpenChange, hideTrigger }: ImportP
     interface Block {
       text: string; x: number; y: number; w: number; h: number; fs: number; rtl: boolean; bottomY: number;
       fontFamily?: string; fontWeight?: SlideElement['fontWeight']; fontStyle?: SlideElement['fontStyle'];
+      color?: string; lastTopY: number; topGaps: number[]; fss: number[];
     }
     const blocks: Block[] = [];
     for (const line of lines) {
@@ -246,12 +268,16 @@ export const ImportPDF = ({ onImport, open, onOpenChange, hideTrigger }: ImportP
         const minW = Math.min(last.w, line.w);
         const gap = line.topY - last.bottomY;
         if (gap <= Math.max(last.fs, line.fs) * 0.8 && overlapW >= minW * 0.2) {
+          last.topGaps.push(line.topY - last.lastTopY);
+          last.fss.push(line.fs);
           last.text += '\n' + line.text;
           last.x = Math.min(last.x, line.x);
           last.w = Math.max(last.x + last.w, line.x + line.w) - last.x;
           last.bottomY = Math.max(last.bottomY, line.bottomY);
           last.fs = Math.max(last.fs, line.fs);
+          last.lastTopY = line.topY;
           if (line.rtl) last.rtl = true;
+          if (!last.color && line.color) last.color = line.color;
           if (line.fs >= last.fs) {
             last.fontFamily = line.fontFamily || last.fontFamily;
             last.fontWeight = line.fontWeight || last.fontWeight;
@@ -264,10 +290,16 @@ export const ImportPDF = ({ onImport, open, onOpenChange, hideTrigger }: ImportP
         text: line.text, x: line.x, y: line.topY, w: line.w, h: line.bottomY - line.topY,
         fs: line.fs, rtl: line.rtl, bottomY: line.bottomY,
         fontFamily: line.fontFamily, fontWeight: line.fontWeight, fontStyle: line.fontStyle,
+        color: line.color, lastTopY: line.topY, topGaps: [], fss: [line.fs],
       });
     }
 
     return blocks.map((b, bi) => {
+      // Reproduce the original line spacing instead of a fixed multiplier
+      const avgFs = b.fss.reduce((s, v) => s + v, 0) / b.fss.length;
+      const lineHeight = b.topGaps.length > 0
+        ? Math.max(1.0, Math.min(2.6, (b.topGaps.reduce((s, v) => s + v, 0) / b.topGaps.length) / avgFs))
+        : 1.15;
       // Widen boxes so small edits don't rewrap content into a tall column;
       // RTL blocks grow leftward keeping their right edge anchored
       const padW = Math.max(24, Math.round(b.w * scale * 0.3));
@@ -294,8 +326,8 @@ export const ImportPDF = ({ onImport, open, onOpenChange, hideTrigger }: ImportP
         fontFamily: b.fontFamily,
         textAlign: (b.rtl ? 'right' : 'left') as 'left' | 'right',
         verticalAlign: 'top' as const,
-        color: '#000000',
-        lineHeight: 1.15,
+        color: b.color || '#000000',
+        lineHeight,
         zIndex: 20,
       };
     });
@@ -308,7 +340,7 @@ export const ImportPDF = ({ onImport, open, onOpenChange, hideTrigger }: ImportP
     pageHpt: number,
     totalAreaPx: number,
     pageIdx: number,
-    fontRegistry?: { families: Map<string, string>; names: Map<string, string>; registered: Set<string> }
+    fontRegistry?: { families: Map<string, string>; names: Map<string, string>; registered: Set<string>; colors?: Map<string, string> }
   ): Promise<{ shapes: SlideElement[]; images: SlideElement[]; bgColor: string | null }> => {
     const out = { shapes: [] as SlideElement[], images: [] as SlideElement[], bgColor: null as string | null };
     try {
@@ -546,24 +578,28 @@ export const ImportPDF = ({ onImport, open, onOpenChange, hideTrigger }: ImportP
           case OPS_.setFont: {
             // Register the PDF's embedded font as a FontFace so text keeps its original look
             const ref = args?.[0];
-            if (typeof ref === 'string' && fontRegistry && !fontRegistry.families.has(ref) && fontRegistry.families.size < 40) {
-              fontRegistry.families.set(ref, ''); // mark seen to avoid duplicate fetches
-              try {
-                const fobj = await fetchImgObj(ref);
-                const realName = String(fobj?.name || fobj?.loadedName || '');
-                fontRegistry.names.set(ref, realName);
-                if (fobj?.data && typeof FontFace !== 'undefined') {
-                  const fam = `pdffont-${ref.replace(/[^a-zA-Z0-9_-]/g, '') || 'x'}`;
-                  if (!fontRegistry.registered.has(fam)) {
-                    const bytes = fobj.data as Uint8Array;
-                    const face = new FontFace(fam, bytes.slice());
-                    document.fonts.add(face);
-                    face.load().catch(() => { /* browser will retry lazily */ });
-                    fontRegistry.registered.add(fam);
+            if (typeof ref === 'string' && fontRegistry) {
+              // remember the fill color active for text drawn with this font
+              fontRegistry.colors.set(ref, fillColor === 'transparent' ? '#000000' : fillColor);
+              if (!fontRegistry.families.has(ref) && fontRegistry.families.size < 40) {
+                fontRegistry.families.set(ref, ''); // mark seen to avoid duplicate fetches
+                try {
+                  const fobj = await fetchImgObj(ref);
+                  const realName = String(fobj?.name || fobj?.loadedName || '');
+                  fontRegistry.names.set(ref, realName);
+                  if (fobj?.data && typeof FontFace !== 'undefined') {
+                    const fam = `pdffont-${ref.replace(/[^a-zA-Z0-9_-]/g, '') || 'x'}`;
+                    if (!fontRegistry.registered.has(fam)) {
+                      const bytes = fobj.data as Uint8Array;
+                      const face = new FontFace(fam, bytes.slice());
+                      document.fonts.add(face);
+                      face.load().catch(() => { /* browser will retry lazily */ });
+                      fontRegistry.registered.add(fam);
+                    }
+                    fontRegistry.families.set(ref, fam);
                   }
-                  fontRegistry.families.set(ref, fam);
-                }
-              } catch { /* font registration is best-effort */ }
+                } catch { /* font registration is best-effort */ }
+              }
             }
             break;
           }
@@ -778,7 +814,7 @@ export const ImportPDF = ({ onImport, open, onOpenChange, hideTrigger }: ImportP
     const slides: SlideTemplate[] = [];
     const previews: string[] = [];
     // Fonts embedded in the PDF get registered as FontFaces so imported text keeps its original look
-    const fontRegistry = { families: new Map<string, string>(), names: new Map<string, string>(), registered: new Set<string>() };
+    const fontRegistry = { families: new Map<string, string>(), names: new Map<string, string>(), registered: new Set<string>(), colors: new Map<string, string>() };
 
     for (let i = 1; i <= pageCount; i++) {
       setStatus({
@@ -843,6 +879,7 @@ export const ImportPDF = ({ onImport, open, onOpenChange, hideTrigger }: ImportP
             fontFamily: embedded || styles[fontName]?.fontFamily,
             fontWeight: embedded ? 'normal' : inferFontWeight(face),
             fontStyle: embedded ? 'normal' : (/italic|oblique/i.test(face) ? 'italic' : 'normal'),
+            color: fontName ? fontRegistry.colors.get(fontName) : undefined,
           });
         }
         textElements = buildTextElements(raws, pageVp.height, pageScale, i);
