@@ -40,6 +40,7 @@ import { GroupingControls, ElementGroup } from './GroupingControls';
 import { CopyPasteStyles, CopiedStyle } from './CopyPasteStyles';
 import { SmartLayouts } from './SmartLayouts';
 import { ImportPPTX } from './ImportPPTX';
+import { ImportPDF } from './ImportPDF';
 import { SlideTemplate } from '@/data/templates';
 import { NotificationBell } from '@/components/NotificationBell';
 import { SupportDialog } from '@/components/SupportDialog';
@@ -98,6 +99,7 @@ interface EditorToolbarProps {
   canvasHeight?: number;
   onApplyLayout?: (elements: SlideElement[]) => void;
   onImportPPTX?: (slides: SlideTemplate[], title: string, size: { width: number; height: number }) => void;
+  onImportPDF?: (slides: SlideTemplate[], title: string, size: { width: number; height: number }) => void;
 }
 
 export const EditorToolbar = ({
@@ -133,6 +135,7 @@ export const EditorToolbar = ({
   canvasHeight = 540,
   onApplyLayout,
   onImportPPTX,
+  onImportPDF,
 }: EditorToolbarProps) => {
   const { t, direction, language } = useLanguage();
 
@@ -191,6 +194,13 @@ export const EditorToolbar = ({
                 <DropdownMenuItem onSelect={(e) => e.preventDefault()} className="text-xs rounded cursor-pointer p-0">
                   <div className="w-full px-2 py-1.5">
                     <ImportPPTX onImport={onImportPPTX} />
+                  </div>
+                </DropdownMenuItem>
+              )}
+              {onImportPDF && (
+                <DropdownMenuItem onSelect={(e) => e.preventDefault()} className="text-xs rounded cursor-pointer p-0">
+                  <div className="w-full px-2 py-1.5">
+                    <ImportPDF onImport={onImportPDF} />
                   </div>
                 </DropdownMenuItem>
               )}
@@ -630,6 +640,9 @@ export const EditorToolbar = ({
         {/* Import */}
         {onImportPPTX && (
           <ImportPPTX onImport={onImportPPTX} />
+        )}
+        {onImportPDF && (
+          <ImportPDF onImport={onImportPDF} />
         )}
 
         {/* Preview Button */}

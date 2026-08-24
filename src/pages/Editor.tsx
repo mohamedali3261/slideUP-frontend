@@ -1152,6 +1152,9 @@ export const Editor = () => {
     toast.success(`Imported ${importedSlides.length} slides!`);
   }, []);
 
+  // PDF import uses the same flow (pages become slides)
+  const handleImportPDF = handleImportPPTX;
+
   // Canvas size change handler
   const handleCanvasSizeChange = useCallback((width: number, height: number) => {
     setCanvasWidth(width);
@@ -1300,6 +1303,7 @@ export const Editor = () => {
         canvasHeight={canvasHeight}
         onApplyLayout={handleApplyLayout}
         onImportPPTX={handleImportPPTX}
+        onImportPDF={handleImportPDF}
       />
 
       {/* Main Editor Area */}

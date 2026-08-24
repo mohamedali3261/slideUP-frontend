@@ -235,6 +235,12 @@ export const DraggableElement = ({
 
   const handleMouseDown = useCallback((e: React.MouseEvent | React.TouchEvent) => {
     if (isEditing) return;
+    // Locked elements can be selected but not dragged
+    if (element.locked) {
+      e.stopPropagation();
+      onSelect();
+      return;
+    }
     e.preventDefault();
     e.stopPropagation();
     onSelect();
@@ -258,9 +264,10 @@ export const DraggableElement = ({
     
     document.body.style.cursor = 'grabbing';
     document.body.style.userSelect = 'none';
-  }, [element.x, element.y, onSelect, isEditing]);
+  }, [element.x, element.y, element.locked, onSelect, isEditing]);
 
   const handleResizeStart = useCallback((e: React.MouseEvent | React.TouchEvent, direction: ResizeDirection) => {
+    if (element.locked) return;
     e.preventDefault();
     e.stopPropagation();
     
