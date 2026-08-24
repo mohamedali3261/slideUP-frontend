@@ -82,6 +82,7 @@ interface RawTextItem {
   fontWeight?: SlideElement['fontWeight'];
   fontStyle?: SlideElement['fontStyle'];
   color?: string;
+  fontRef?: string;
 }
 
 interface TextLine {
@@ -334,7 +335,7 @@ export const ImportPDF = ({ onImport, open, onOpenChange, hideTrigger, initialFi
     });
   }, []);
 
-  // ---------- vector/image extraction from the page content stream ----------
+  // ---------- vector/image/text extraction from the page content stream ----------
   const extractGraphicElements = useCallback(async (
     page: any,
     scale: number,
@@ -342,8 +343,8 @@ export const ImportPDF = ({ onImport, open, onOpenChange, hideTrigger, initialFi
     totalAreaPx: number,
     pageIdx: number,
     fontRegistry?: { families: Map<string, string>; names: Map<string, string>; registered: Set<string>; colors?: Map<string, string> }
-  ): Promise<{ shapes: SlideElement[]; images: SlideElement[]; bgColor: string | null }> => {
-    const out = { shapes: [] as SlideElement[], images: [] as SlideElement[], bgColor: null as string | null };
+  ): Promise<{ shapes: SlideElement[]; images: SlideElement[]; bgColor: string | null; textRuns: RawTextItem[] }> => {
+    const out = { shapes: [] as SlideElement[], images: [] as SlideElement[], bgColor: null as string | null, textRuns: [] as RawTextItem[] };
     try {
       const OPS_: Record<string, number> = pdfjsLib.OPS as any;
       const opList = await page.getOperatorList();
@@ -353,6 +354,13 @@ export const ImportPDF = ({ onImport, open, onOpenChange, hideTrigger, initialFi
         { ctm: [1, 0, 0, 1, 0, 0], clip: null, fillAlpha: 1, strokeAlpha: 1 };
       const stack: Array<{ ctm: number[]; clip: GRect | null; fillAlpha: number; strokeAlpha: number }> = [];
       let awaitingClip = 0; // 1 = W (nonzero) pending, 2 = W* (evenodd) pending
+      // PDF text state for run extraction (exact positions, works inside Form XObjects)
+      let tm: number[] | null = null;
+      let lm: number[] | null = null;
+      let leading = 0;
+      let curFont = '';
+      let curFontSize = 0;
+      const seenText = new Set<string>();
       let fillColor = '#000000';
       let strokeColor = '#000000';
       const seen = new Set<string>();
@@ -383,6 +391,34 @@ export const ImportPDF = ({ onImport, open, onOpenChange, hideTrigger, initialFi
         const x0 = Math.max(a.x, b.x), y0 = Math.max(a.y, b.y);
         const x1 = Math.min(a.x + a.w, b.x + b.w), y1 = Math.min(a.y + a.h, b.y + b.h);
         return x1 - x0 > 0.5 && y1 - y0 > 0.5 ? { x: x0, y: y0, w: x1 - x0, h: y1 - y0 } : null;
+      };
+
+      // Collect a text run at the current text matrix — exact position even inside Form XObjects
+      const pushTextRun = (glyphs: any) => {
+        if (!tm || !curFont || !Array.isArray(glyphs) || out.textRuns.length >= 600) return;
+        let str = '';
+        for (const g of glyphs) {
+          if (typeof g === 'number') continue; // spacing adjustment
+          if (typeof g === 'string') { str += g; continue; }
+          if (g && typeof g.unicode === 'string') str += g.unicode;
+        }
+        str = str.replace(/\s+/g, ' ').trim();
+        if (!str) return;
+        const pos = matApply(gs.ctm, tm[4], tm[5]); // CTM x Tm applied to (0,0)
+        const fs = curFontSize * Math.hypot(tm[0], tm[1]);
+        if (fs < 1) return;
+        const key = `${Math.round(pos[0])},${Math.round(pos[1])},${str}`;
+        if (seenText.has(key)) return; // skip invisible OCR-style duplicates
+        seenText.add(key);
+        out.textRuns.push({
+          str,
+          x: pos[0],
+          yBaseline: pos[1],
+          w: str.length * fs * 0.52, // rough pt width; refined by grouping below
+          fs,
+          rtl: /[\u0600-\u06FF]/.test(str),
+          color: fillColor === 'transparent' ? '#000000' : fillColor,
+        });
       };
 
       const fetchImgObj = (objId: string) => new Promise<any>(resolve => {
@@ -576,30 +612,91 @@ export const ImportPDF = ({ onImport, open, onOpenChange, hideTrigger, initialFi
           case OPS_.setLineWidth:
             lineWidthPt = Number(args?.[0]) > 0 ? Number(args[0]) : 1;
             break;
+          case OPS_.beginText:
+            tm = [1, 0, 0, 1, 0, 0];
+            lm = [1, 0, 0, 1, 0, 0];
+            break;
+          case OPS_.setTextMatrix: {
+            const m = asMat(args);
+            if (m) { tm = m; lm = m.slice(); }
+            break;
+          }
+          case OPS_.moveText: {
+            if (lm) {
+              lm = matMul([1, 0, 0, 1, Number(args?.[0]) || 0, Number(args?.[1]) || 0], lm);
+              tm = lm.slice();
+            }
+            break;
+          }
+          case OPS_.setLeading:
+            leading = Number(args?.[0]) || 0;
+            break;
+          case OPS_.setLeadingMoveText: {
+            leading = -Number(args?.[1]) || 0;
+            if (lm) {
+              lm = matMul([1, 0, 0, 1, Number(args?.[0]) || 0, Number(args?.[1]) || 0], lm);
+              tm = lm.slice();
+            }
+            break;
+          }
+          case OPS_.nextLine: {
+            if (lm) {
+              lm = matMul([1, 0, 0, 1, 0, -leading], lm);
+              tm = lm.slice();
+            }
+            break;
+          }
+          case OPS_.showText:
+            pushTextRun(args?.[0]);
+            break;
+          case OPS_.showSpacedText:
+            pushTextRun(args?.[0]);
+            break;
+          case OPS_.nextLineShowText: {
+            if (lm) {
+              lm = matMul([1, 0, 0, 1, 0, -leading], lm);
+              tm = lm.slice();
+            }
+            pushTextRun(args?.[0]);
+            break;
+          }
+          case OPS_.nextLineSetSpacingShowText: {
+            // args = [wordSpacing, charSpacing, glyphs]
+            if (lm) {
+              lm = matMul([1, 0, 0, 1, 0, -leading], lm);
+              tm = lm.slice();
+            }
+            pushTextRun(args?.[2]);
+            break;
+          }
           case OPS_.setFont: {
-            // Register the PDF's embedded font as a FontFace so text keeps its original look
             const ref = args?.[0];
-            if (typeof ref === 'string' && fontRegistry) {
-              // remember the fill color active for text drawn with this font
-              fontRegistry.colors.set(ref, fillColor === 'transparent' ? '#000000' : fillColor);
-              if (!fontRegistry.families.has(ref) && fontRegistry.families.size < 40) {
-                fontRegistry.families.set(ref, ''); // mark seen to avoid duplicate fetches
-                try {
-                  const fobj = await fetchImgObj(ref);
-                  const realName = String(fobj?.name || fobj?.loadedName || '');
-                  fontRegistry.names.set(ref, realName);
-                  if (fobj?.data && typeof FontFace !== 'undefined') {
-                    const fam = `pdffont-${ref.replace(/[^a-zA-Z0-9_-]/g, '') || 'x'}`;
-                    if (!fontRegistry.registered.has(fam)) {
-                      const bytes = fobj.data as Uint8Array;
-                      const face = new FontFace(fam, bytes.slice());
-                      document.fonts.add(face);
-                      face.load().catch(() => { /* browser will retry lazily */ });
-                      fontRegistry.registered.add(fam);
+            if (typeof ref === 'string') {
+              curFont = ref;
+              curFontSize = Number(args?.[1]) || curFontSize;
+              // Register the PDF's embedded font as a FontFace so text keeps its original look
+              if (fontRegistry) {
+                // remember the fill color active for text drawn with this font
+                fontRegistry.colors.set(ref, fillColor === 'transparent' ? '#000000' : fillColor);
+                if (!fontRegistry.families.has(ref) && fontRegistry.families.size < 40) {
+                  fontRegistry.families.set(ref, ''); // mark seen to avoid duplicate fetches
+                  try {
+                    const fobj = await fetchImgObj(ref);
+                    const realName = String(fobj?.name || fobj?.loadedName || '');
+                    fontRegistry.names.set(ref, realName);
+                    if (fobj?.data && typeof FontFace !== 'undefined') {
+                      const fam = `pdffont-${ref.replace(/[^a-zA-Z0-9_-]/g, '') || 'x'}`;
+                      if (!fontRegistry.registered.has(fam)) {
+                        const bytes = fobj.data as Uint8Array;
+                        const face = new FontFace(fam, bytes.slice());
+                        document.fonts.add(face);
+                        face.load().catch(() => { /* browser will retry lazily */ });
+                        fontRegistry.registered.add(fam);
+                      }
+                      fontRegistry.families.set(ref, fam);
                     }
-                    fontRegistry.families.set(ref, fam);
-                  }
-                } catch { /* font registration is best-effort */ }
+                  } catch { /* font registration is best-effort */ }
+                }
               }
             }
             break;
@@ -853,35 +950,50 @@ export const ImportPDF = ({ onImport, open, onOpenChange, hideTrigger, initialFi
       const movableImages = graphics.images.filter(img => !img.locked);
       const pageBackgrounds = graphics.images.filter(img => img.locked);
 
-      // Editable texts
+      // Editable texts — primary source: content-stream runs (exact positions/colors),
+      // fallback: getTextContent if the page yielded no runs
       let textElements: SlideElement[] = [];
       try {
-        const tc = await page.getTextContent();
-        const styles = (tc as { styles?: Record<string, { fontFamily?: string }> }).styles || {};
-        const raws: RawTextItem[] = [];
-        for (const item of tc.items) {
-          if (!('str' in item)) continue;
-          const ti = item as { str: string; transform: number[]; width: number; dir: string; fontName?: string };
-          if (!ti.str || !ti.str.trim()) continue;
-          const tr = ti.transform;
-          const fs = Math.hypot(tr[2], tr[3]) || Math.abs(tr[3]) || 12;
-          const fontName = ti.fontName || '';
-          const embedded = fontName ? fontRegistry.families.get(fontName) : '';
-          const realName = fontName ? fontRegistry.names.get(fontName) || '' : '';
-          const family = styles[fontName]?.fontFamily || '';
-          const face = `${fontName} ${family} ${realName}`;
-          raws.push({
-            str: ti.str,
-            x: tr[4],
-            yBaseline: tr[5],
-            w: ti.width,
-            fs,
-            rtl: ti.dir === 'rtl' || /[\u0600-\u06FF]/.test(ti.str),
-            fontFamily: embedded || styles[fontName]?.fontFamily,
-            fontWeight: embedded ? 'normal' : inferFontWeight(face),
-            fontStyle: embedded ? 'normal' : (/italic|oblique/i.test(face) ? 'italic' : 'normal'),
-            color: fontName ? fontRegistry.colors.get(fontName) : undefined,
+        let raws: RawTextItem[] = [];
+        if (graphics.textRuns.length > 0) {
+          raws = graphics.textRuns.map(r => {
+            const fam = fontRegistry.families.get(r.fontRef) || '';
+            const realName = fontRegistry.names.get(r.fontRef) || '';
+            return {
+              ...r,
+              rtl: r.rtl || /[\u0600-\u06FF]/.test(r.str),
+              fontFamily: fam || undefined,
+              fontWeight: fam ? 'normal' as const : inferFontWeight(`${r.fontRef} ${realName}`),
+              fontStyle: (/italic|oblique/i.test(realName) ? 'italic' : 'normal') as 'italic' | 'normal',
+            };
           });
+        } else {
+          const tc = await page.getTextContent();
+          const styles = (tc as { styles?: Record<string, { fontFamily?: string }> }).styles || {};
+          for (const item of tc.items) {
+            if (!('str' in item)) continue;
+            const ti = item as { str: string; transform: number[]; width: number; dir: string; fontName?: string };
+            if (!ti.str || !ti.str.trim()) continue;
+            const tr = ti.transform;
+            const fs = Math.hypot(tr[2], tr[3]) || Math.abs(tr[3]) || 12;
+            const fontName = ti.fontName || '';
+            const embedded = fontName ? fontRegistry.families.get(fontName) : '';
+            const realName = fontName ? fontRegistry.names.get(fontName) || '' : '';
+            const family = styles[fontName]?.fontFamily || '';
+            const face = `${fontName} ${family} ${realName}`;
+            raws.push({
+              str: ti.str,
+              x: tr[4],
+              yBaseline: tr[5],
+              w: ti.width,
+              fs,
+              rtl: ti.dir === 'rtl' || /[\u0600-\u06FF]/.test(ti.str),
+              fontFamily: embedded || styles[fontName]?.fontFamily,
+              fontWeight: embedded ? 'normal' : inferFontWeight(face),
+              fontStyle: embedded ? 'normal' : (/italic|oblique/i.test(face) ? 'italic' : 'normal'),
+              color: fontName ? fontRegistry.colors.get(fontName) : undefined,
+            });
+          }
         }
         textElements = buildTextElements(raws, pageVp.height, pageScale, i);
       } catch { /* best-effort */ }
