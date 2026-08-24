@@ -1169,6 +1169,10 @@ export const PropertiesPanel = ({
                       { value: 'polygon(0% 0%, 75% 0%, 100% 50%, 75% 100%, 0% 100%)', label: '▶', title: language === 'ar' ? 'سهم' : 'Arrow' },
                       { value: 'polygon(20% 0%, 80% 0%, 100% 20%, 100% 80%, 80% 100%, 20% 100%, 0% 80%, 0% 20%)', label: '⯃', title: language === 'ar' ? 'ثماني' : 'Octagon' },
                       { value: 'polygon(50% 0%, 80% 10%, 100% 35%, 100% 70%, 80% 90%, 50% 100%, 20% 90%, 0% 70%, 0% 35%, 20% 10%)', label: '⬢', title: language === 'ar' ? 'عشاري' : 'Decagon' },
+                      { value: 'inset(0 round 999px 999px 0 0)', label: '⌒', title: language === 'ar' ? 'قوس' : 'Arch' },
+                      { value: 'polygon(20% 2%, 60% 0%, 95% 15%, 100% 55%, 85% 95%, 45% 100%, 10% 90%, 0% 50%, 5% 15%)', label: '⬟', title: language === 'ar' ? 'بلاوب' : 'Blob' },
+                      { value: 'polygon(20% 0%, 80% 0%, 100% 100%, 0% 100%)', label: '⏢', title: language === 'ar' ? 'شبه منحرف' : 'Trapezoid' },
+                      { value: 'polygon(25% 0%, 100% 0%, 75% 100%, 0% 100%)', label: '▱', title: language === 'ar' ? 'متوازي أضلاع' : 'Parallelogram' },
                     ].map((clip) => (
                       <Button
                         key={clip.value}

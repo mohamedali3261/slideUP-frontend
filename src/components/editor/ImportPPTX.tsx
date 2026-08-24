@@ -47,6 +47,9 @@ const AlertIcon = () => (
 
 interface ImportPPTXProps {
   onImport: (slides: SlideTemplate[], title: string, size: { width: number; height: number }) => void;
+  open?: boolean;
+  onOpenChange?: (open: boolean) => void;
+  hideTrigger?: boolean;
 }
 
 interface ImportStatus {

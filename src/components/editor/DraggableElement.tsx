@@ -961,7 +961,7 @@ export const DraggableElement = ({
         transformOrigin: 'center center',
         willChange: isDragging ? 'left, top' : 'auto',
         overflow: element.type === 'text' ? 'visible' : 'hidden',
-        pointerEvents: 'auto',
+        pointerEvents: element.locked ? 'none' : 'auto',
         touchAction: 'none',
       }}
       onMouseDown={isEditing ? undefined : handleMouseDown}
