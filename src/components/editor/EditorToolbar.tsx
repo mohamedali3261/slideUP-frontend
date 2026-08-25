@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { Button } from '@/components/ui/button';
 import { Link } from 'react-router-dom';
@@ -137,6 +138,9 @@ export const EditorToolbar = ({
   onImportPDF,
 }: EditorToolbarProps) => {
   const { t, direction, language } = useLanguage();
+  // Import dialog lives outside the mobile dropdown menu (menus unmount on close, which
+  // killed the file input on mobile before a file could be picked)
+  const [importOpen, setImportOpen] = useState(false);
 
   const handleGoTo = async (path: string) => {
     if (onSave) {
@@ -190,10 +194,9 @@ export const EditorToolbar = ({
                 </DropdownMenuItem>
               )}
               {onImportPDF && (
-                <DropdownMenuItem onSelect={(e) => e.preventDefault()} className="text-xs rounded cursor-pointer p-0">
-                  <div className="w-full px-2 py-1.5">
-                    <ImportFile onImport={onImportPDF} />
-                  </div>
+                <DropdownMenuItem onClick={() => setImportOpen(true)} className="text-xs rounded cursor-pointer">
+                  <FileUp className="w-4 h-4 mr-2" />
+                  {language === 'ar' ? 'استيراد PowerPoint / PDF' : 'Import PowerPoint / PDF'}
                 </DropdownMenuItem>
               )}
               <KeyboardShortcutsHelp
@@ -219,6 +222,16 @@ export const EditorToolbar = ({
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
+
+          {/* Controlled import dialog — rendered outside the menu so it never unmounts on mobile */}
+          {onImportPDF && (
+            <ImportFile
+              onImport={onImportPDF}
+              open={importOpen}
+              onOpenChange={setImportOpen}
+              hideTrigger
+            />
+          )}
         </div>
 
         {/* Row 2: Tools (horizontally scrollable) */}
