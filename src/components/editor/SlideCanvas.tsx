@@ -75,6 +75,17 @@ export const SlideCanvas = ({
   // Pinch zoom + double-tap zoom state
   const pinchStartRef = useRef({ distance: 0, zoom: zoom });
   const lastTapRef = useRef({ time: 0, x: 0, y: 0 });
+  // Anchored zoom: keeps the point under the fingers/cursor fixed while zooming
+  const canvasAreaRef = useRef<HTMLDivElement>(null);
+  const wrapperRef = useRef<HTMLDivElement>(null);
+  const appliedZoomRef = useRef(zoom);
+  const pinchGestureRef = useRef({
+    active: false,
+    startZoom: 100,
+    layoutPos: { x: 0, y: 0 },
+    anchor: { x: 0, y: 0 },
+    screenPoint: { x: 0, y: 0 },
+  });
   // Long-press to open the context menu on touch devices
   const longPressTimerRef = useRef<number | null>(null);
   const longPressTriggeredRef = useRef(false);
@@ -97,7 +108,44 @@ export const SlideCanvas = ({
   // Keep zoom ref updated
   useEffect(() => {
     zoomRef.current = zoom;
+    appliedZoomRef.current = zoom;
   }, [zoom]);
+
+  // Zoom to `newZoomPercent` while keeping the content point under `screenPoint`
+  // (relative to the canvas-area element) visually fixed — smooth pinch/wheel zooming
+  const applyAnchoredZoom = useCallback((newZoomPercent: number, gesture: { startZoom: number; layoutPos: { x: number; y: number }; anchor: { x: number; y: number }; screenPoint: { x: number; y: number } }) => {
+    const clamped = Math.min(200, Math.max(25, Math.round(newZoomPercent * 10) / 10));
+    if (Math.abs(clamped - appliedZoomRef.current) < 0.05) return;
+    const z0 = gesture.startZoom / 100;
+    const z1 = clamped / 100;
+    // The sized wrapper is flex-centered: its layout x shifts by -W/2 per unit scale change, y stays fixed
+    const layoutX1 = gesture.layoutPos.x - (propCanvasWidth * (z1 - z0)) / 2;
+    const pan1 = {
+      x: gesture.screenPoint.x - layoutX1 - gesture.anchor.x * z1,
+      y: gesture.screenPoint.y - gesture.layoutPos.y - gesture.anchor.y * z1,
+    };
+    setPanOffset(pan1);
+    appliedZoomRef.current = clamped;
+    zoomRef.current = clamped;
+    onZoomChange?.(clamped);
+  }, [propCanvasWidth, onZoomChange]);
+
+  // Capture the anchor for a zoom gesture at a screen point
+  const captureZoomAnchor = useCallback((clientX: number, clientY: number) => {
+    const areaEl = canvasAreaRef.current;
+    const wrapEl = wrapperRef.current;
+    if (!areaEl || !wrapEl) return null;
+    const areaRect = areaEl.getBoundingClientRect();
+    const wrapRect = wrapEl.getBoundingClientRect();
+    const screenPoint = { x: clientX - areaRect.left, y: clientY - areaRect.top };
+    const layoutPos = { x: wrapRect.left - areaRect.left, y: wrapRect.top - areaRect.top };
+    const z0 = zoomRef.current / 100;
+    const anchor = {
+      x: (screenPoint.x - layoutPos.x - panOffset.x) / z0,
+      y: (screenPoint.y - layoutPos.y - panOffset.y) / z0,
+    };
+    return { startZoom: zoomRef.current, layoutPos, anchor, screenPoint };
+  }, [panOffset]);
 
   // Auto-fit canvas to available space on mount and panel changes
   useEffect(() => {
@@ -210,10 +258,18 @@ export const SlideCanvas = ({
       setIsPanning(false);
       const t1 = e.touches[0];
       const t2 = e.touches[1];
+      const distance = Math.hypot(t1.clientX - t2.clientX, t1.clientY - t2.clientY);
       pinchStartRef.current = {
-        distance: Math.hypot(t1.clientX - t2.clientX, t1.clientY - t2.clientY),
+        distance,
         zoom: zoomRef.current,
       };
+      // Anchor the zoom at the pinch midpoint so content stays under the fingers
+      const gesture = captureZoomAnchor((t1.clientX + t2.clientX) / 2, (t1.clientY + t2.clientY) / 2);
+      if (gesture) {
+        pinchGestureRef.current = { active: true, ...gesture };
+      } else {
+        pinchGestureRef.current.active = false;
+      }
       return;
     }
 
@@ -228,19 +284,24 @@ export const SlideCanvas = ({
     const touch = e.touches[0];
     setIsPanning(true);
     panStartRef.current = { x: touch.clientX, y: touch.clientY, offsetX: panOffset.x, offsetY: panOffset.y };
-  }, [panOffset]);
+  }, [panOffset, captureZoomAnchor]);
 
   const handleTouchPanMove = useCallback((e: React.TouchEvent) => {
-    // Pinch zoom with two fingers
+    // Pinch zoom with two fingers — anchored at the pinch midpoint
     if (e.touches.length === 2) {
       const t1 = e.touches[0];
       const t2 = e.touches[1];
       const distance = Math.hypot(t1.clientX - t2.clientX, t1.clientY - t2.clientY);
       const startDistance = pinchStartRef.current.distance || 1;
       const ratio = distance / startDistance;
-      const newZoom = Math.min(200, Math.max(25, Math.round(pinchStartRef.current.zoom * ratio)));
-      if (newZoom !== zoomRef.current && onZoomChange) {
-        onZoomChange(newZoom);
+      const g = pinchGestureRef.current;
+      if (g.active) {
+        applyAnchoredZoom(g.startZoom * ratio, g);
+      } else {
+        const newZoom = Math.min(200, Math.max(25, Math.round(pinchStartRef.current.zoom * ratio)));
+        if (newZoom !== zoomRef.current && onZoomChange) {
+          onZoomChange(newZoom);
+        }
       }
       return;
     }
@@ -255,20 +316,31 @@ export const SlideCanvas = ({
     setPanOffset(prev => ({ x: prev.x + dx, y: prev.y + dy }));
     panStartRef.current.x = touch.clientX;
     panStartRef.current.y = touch.clientY;
-  }, [isPanning, onZoomChange]);
+  }, [isPanning, onZoomChange, applyAnchoredZoom]);
 
   const handleTouchPanEnd = useCallback((e: React.TouchEvent) => {
     setIsPanning(false);
-    // Double-tap to zoom in/out (only for clean taps that didn't move)
+    // Pinch just ended but one finger is still down -> resume panning seamlessly
+    if (e.touches.length === 1) {
+      const t = e.touches[0];
+      setIsPanning(true);
+      panStartRef.current = { x: t.clientX, y: t.clientY, offsetX: panOffset.x, offsetY: panOffset.y };
+    }
+    // Double-tap to zoom in/out (only for clean taps that didn't move) — anchored at the tap
     if (e.touches.length === 0 && e.changedTouches.length === 1 && !panMovedRef.current) {
       const t = e.changedTouches[0];
       const now = Date.now();
       const last = lastTapRef.current;
       if (now - last.time < 300 && Math.abs(t.clientX - last.x) < 40 && Math.abs(t.clientY - last.y) < 40 && onZoomChange) {
-        const newZoom = zoomRef.current >= 100
-          ? Math.max(25, zoomRef.current - 30)
-          : Math.min(200, zoomRef.current + 30);
-        onZoomChange(newZoom);
+        const gesture = captureZoomAnchor(t.clientX, t.clientY);
+        if (gesture) {
+          const target = zoomRef.current >= 100
+            ? Math.max(25, zoomRef.current - 30)
+            : Math.min(200, zoomRef.current + 30);
+          applyAnchoredZoom(target, gesture);
+        } else {
+          onZoomChange(zoomRef.current >= 100 ? Math.max(25, zoomRef.current - 30) : Math.min(200, zoomRef.current + 30));
+        }
         lastTapRef.current = { time: 0, x: 0, y: 0 };
       } else {
         lastTapRef.current = { time: now, x: t.clientX, y: t.clientY };
@@ -282,7 +354,7 @@ export const SlideCanvas = ({
       setTimeout(() => { suppressClickRef.current = false; }, 600);
     }
     panMovedRef.current = false;
-  }, [onZoomChange]);
+  }, [onZoomChange, panOffset, captureZoomAnchor, applyAnchoredZoom]);
 
   // Long-press on canvas/elements opens the context menu (mobile has no right-click)
   const clearLongPressTimer = useCallback(() => {
@@ -344,16 +416,20 @@ export const SlideCanvas = ({
     }
   }, [onZoomChange, propCanvasWidth, propCanvasHeight]);
 
-  // Handle wheel zoom - smooth and centered
+  // Handle wheel zoom - anchored at the cursor so content stays under it
   const handleWheel = useCallback((e: WheelEvent) => {
     e.preventDefault();
-    if (onZoomChange) {
-      // Smoother zoom increment (2% instead of 5%)
-      const delta = e.deltaY > 0 ? -2 : 2;
-      const newZoom = Math.min(200, Math.max(25, zoomRef.current + delta));
-      onZoomChange(newZoom);
+    if (!onZoomChange) return;
+    const step = e.ctrlKey || e.metaKey ? -e.deltaY * 0.01 : (e.deltaY > 0 ? -2 : 2);
+    const targetZoom = Math.min(200, Math.max(25, zoomRef.current + step));
+    if (Math.abs(targetZoom - appliedZoomRef.current) < 0.05) return;
+    const gesture = captureZoomAnchor(e.clientX, e.clientY);
+    if (gesture) {
+      applyAnchoredZoom(targetZoom, gesture);
+    } else {
+      onZoomChange(targetZoom);
     }
-  }, [onZoomChange]);
+  }, [onZoomChange, captureZoomAnchor, applyAnchoredZoom]);
 
   // Add wheel event listener
   useEffect(() => {
@@ -961,16 +1037,18 @@ export const SlideCanvas = ({
           )}
 
           {/* Main Canvas Container */}
-          <div 
+          <div
+            ref={canvasAreaRef}
             className="flex-1 flex items-start justify-center p-4 overflow-auto scrollbar-thin scrollbar-thumb-primary/40 hover:scrollbar-thumb-primary/60 scrollbar-track-muted/20"
             data-canvas-area
             style={{ touchAction: 'none' }}
             onMouseMove={handleCanvasHover}
             onMouseLeave={clearRulerMarker}
           >
-            <div 
-              style={{ 
-                width: propCanvasWidth * (zoom / 100), 
+            <div
+              ref={wrapperRef}
+              style={{
+                width: propCanvasWidth * (zoom / 100),
                 height: propCanvasHeight * (zoom / 100),
                 position: 'relative',
                 transform: `translate(${panOffset.x}px, ${panOffset.y}px)`,
