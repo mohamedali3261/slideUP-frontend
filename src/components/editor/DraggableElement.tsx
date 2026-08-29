@@ -717,17 +717,25 @@ export const DraggableElement = ({
     }
   };
 
+  // Detect if text content contains Arabic/RTL characters
+  const hasArabicText = (text: string): boolean => {
+    return /[\u0600-\u06FF\u0750-\u077F\u08A0-\u08FF\uFB50-\uFDFF\uFE70-\uFEFF]/.test(text);
+  };
+
   const renderContent = () => {
     // direction is already available from the component-level useLanguage() call above
     switch (element.type) {
       case 'text':
         const baseFontSize = element.fontSize || 16;
         const scaledFontSize = isResizing ? baseFontSize * liveScale : baseFontSize;
+        // Auto-detect text direction: if content has Arabic chars use RTL regardless of UI language
+        const contentText = element.content || '';
+        const textDirection: 'rtl' | 'ltr' = hasArabicText(contentText) ? 'rtl' : (direction as 'rtl' | 'ltr');
         const textStyles: React.CSSProperties = {
           fontSize: scaledFontSize,
           fontWeight: getFontWeight(element.fontWeight),
           fontStyle: element.fontStyle || 'normal',
-          textAlign: element.textAlign || 'left',
+          textAlign: element.textAlign || (textDirection === 'rtl' ? 'right' : 'left'),
           textDecoration: element.textDecoration || 'none',
           textTransform: element.textTransform || 'none',
           lineHeight: element.lineHeight || 1.5,
@@ -736,7 +744,8 @@ export const DraggableElement = ({
           color: element.color || '#000000',
           backgroundColor: element.backgroundColor,
           textShadow: element.textShadow,
-          direction: direction,
+          direction: textDirection,
+          unicodeBidi: 'embed',
         };
         return isEditing ? (
           <div 
@@ -768,6 +777,11 @@ export const DraggableElement = ({
               }}
               className="bg-transparent border border-dashed border-primary/40 rounded outline-none resize-none block"
               style={{ ...textStyles, userSelect: 'text', cursor: 'text', overflow: 'hidden', minHeight: 24, width: '100%', boxSizing: 'border-box', padding: '4px 8px' }}
+              onInput={(e) => {
+                // Dynamically update direction as user types
+                const val = (e.target as HTMLTextAreaElement).value;
+                (e.target as HTMLTextAreaElement).style.direction = hasArabicText(val) ? 'rtl' : (direction as string);
+              }}
             />
             {/* Paste Button */}
             <button

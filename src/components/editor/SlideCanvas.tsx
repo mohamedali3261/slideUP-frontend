@@ -211,21 +211,27 @@ export const SlideCanvas = ({
   // Handle pan mouse events
   const handlePanStart = useCallback((e: React.MouseEvent) => {
     if (touchActiveRef.current) {
-      // Synthetic mouse event fired after a touch gesture - ignore it
       touchActiveRef.current = false;
       return;
     }
-    if (isSpacePressed || e.button === 1) { // Space + click or middle mouse
+    if (isSpacePressed || e.button === 1) {
+      // Space + left click OR middle mouse → always pan
       e.preventDefault();
       setIsPanning(true);
       panStartRef.current = { x: e.clientX, y: e.clientY, offsetX: panOffset.x, offsetY: panOffset.y };
     } else if (e.button === 0) {
-      // Left click - start selection if clicking on empty area
       const target = e.target as HTMLElement;
-      const isCanvas = target.id === 'slide-canvas' || target === containerRef.current || target.closest('[data-canvas-area]');
       const isElement = target.closest('[data-element-id]');
-      
-      if (isCanvas && !isElement && canvasRef.current) {
+      const isInsideCanvas = !!target.closest('#slide-canvas');
+      // Left drag anywhere outside the canvas content → pan
+      if (!isInsideCanvas && !isElement) {
+        e.preventDefault();
+        setIsPanning(true);
+        panStartRef.current = { x: e.clientX, y: e.clientY, offsetX: panOffset.x, offsetY: panOffset.y };
+        return;
+      }
+      // Click on empty canvas space → start selection box
+      if (isInsideCanvas && !isElement && canvasRef.current) {
         const rect = canvasRef.current.getBoundingClientRect();
         const scale = zoom / 100;
         const x = (e.clientX - rect.left) / scale;
@@ -1041,7 +1047,9 @@ export const SlideCanvas = ({
             ref={canvasAreaRef}
             className="flex-1 flex items-start justify-center p-4 overflow-auto scrollbar-thin scrollbar-thumb-primary/40 hover:scrollbar-thumb-primary/60 scrollbar-track-muted/20"
             data-canvas-area
-            style={{ touchAction: 'none' }}
+            style={{
+              touchAction: 'none',
+            }}
             onMouseMove={handleCanvasHover}
             onMouseLeave={clearRulerMarker}
           >

@@ -138,6 +138,9 @@ const renderElement = (element: SlideElement, animate: boolean) => {
   };
 
   if (element.type === 'text') {
+    const contentText = element.content || '';
+    const hasArabic = /[\u0600-\u06FF\u0750-\u077F\u08A0-\u08FF\uFB50-\uFDFF\uFE70-\uFEFF]/.test(contentText);
+    const textDir = hasArabic ? 'rtl' : 'ltr';
     return (
       <div key={element.id} style={base}>
         <div
@@ -149,7 +152,7 @@ const renderElement = (element: SlideElement, animate: boolean) => {
             fontSize: element.fontSize || 16,
             fontWeight: FONT_WEIGHTS[element.fontWeight || 'normal'] || 400,
             fontStyle: element.fontStyle || 'normal',
-            textAlign: element.textAlign || 'left',
+            textAlign: element.textAlign || (textDir === 'rtl' ? 'right' : 'left'),
             textDecoration: element.textDecoration || 'none',
             textTransform: element.textTransform || 'none',
             lineHeight: element.lineHeight || 1.5,
@@ -162,6 +165,8 @@ const renderElement = (element: SlideElement, animate: boolean) => {
             flexDirection: 'column',
             justifyContent: element.verticalAlign === 'middle' ? 'center' : element.verticalAlign === 'bottom' ? 'flex-end' : 'flex-start',
             whiteSpace: 'pre-wrap',
+            direction: textDir,
+            unicodeBidi: 'embed',
           }}
         >
           {element.content || ''}

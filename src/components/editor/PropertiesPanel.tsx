@@ -246,15 +246,37 @@ export const PropertiesPanel = ({
       const reader = new FileReader();
       reader.onload = (event) => {
         const imageUrl = event.target?.result as string;
-        onAddElement({
-          type: 'image',
-          x: 100,
-          y: 100,
-          width: 200,
-          height: 150,
-          imageUrl,
-        });
-        toast.success('Image added!');
+        // Load image to get natural dimensions and fit to canvas
+        const img = new window.Image();
+        img.onload = () => {
+          const imgAspect = img.naturalWidth / img.naturalHeight;
+          const canvasAspect = canvasWidth / canvasHeight;
+          let w = canvasWidth, h = canvasHeight;
+          if (imgAspect > canvasAspect) {
+            h = Math.round(canvasWidth / imgAspect);
+          } else {
+            w = Math.round(canvasHeight * imgAspect);
+          }
+          const x = Math.round((canvasWidth - w) / 2);
+          const y = Math.round((canvasHeight - h) / 2);
+          onAddElement({
+            type: 'image',
+            x, y, width: w, height: h,
+            imageUrl,
+            objectFit: 'contain',
+          });
+        };
+        img.onerror = () => {
+          onAddElement({
+            type: 'image',
+            x: 0, y: 0,
+            width: canvasWidth, height: canvasHeight,
+            imageUrl,
+            objectFit: 'contain',
+          });
+        };
+        img.src = imageUrl;
+        toast.success(language === 'ar' ? 'تمت إضافة الصورة!' : 'Image added!');
       };
       reader.readAsDataURL(file);
     }
@@ -1008,11 +1030,12 @@ export const PropertiesPanel = ({
                 onSelectImage={(imageUrl) => {
                   onAddElement({
                     type: 'image',
-                    x: 100,
-                    y: 100,
-                    width: 400,
-                    height: 300,
+                    x: 0,
+                    y: 0,
+                    width: canvasWidth,
+                    height: canvasHeight,
                     imageUrl,
+                    objectFit: 'contain',
                   });
                 }}
               />

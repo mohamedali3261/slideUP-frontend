@@ -307,14 +307,18 @@ export const PreviewMode = ({
 
     return (
       <div key={element.id} style={style}>
-        {element.type === 'text' && (
+        {element.type === 'text' && (() => {
+          const contentText = element.content || '';
+          const hasArabic = /[\u0600-\u06FF\u0750-\u077F\u08A0-\u08FF\uFB50-\uFDFF\uFE70-\uFEFF]/.test(contentText);
+          const textDir = hasArabic ? 'rtl' : 'ltr';
+          return (
           <div
             className="w-full h-full p-2 whitespace-pre-wrap"
             style={{
               fontSize: element.fontSize || 16,
               fontWeight: getFontWeight(element.fontWeight),
               fontStyle: element.fontStyle || 'normal',
-              textAlign: element.textAlign || 'left',
+              textAlign: element.textAlign || (textDir === 'rtl' ? 'right' : 'left'),
               textDecoration: element.textDecoration || 'none',
               textTransform: element.textTransform || 'none',
               lineHeight: element.lineHeight || 1.5,
@@ -326,6 +330,8 @@ export const PreviewMode = ({
               display: 'flex',
               flexDirection: 'column',
               justifyContent: element.verticalAlign === 'middle' ? 'center' : element.verticalAlign === 'bottom' ? 'flex-end' : 'flex-start',
+              direction: textDir,
+              unicodeBidi: 'embed',
             }}
           >
             {element.link ? (
@@ -348,7 +354,8 @@ export const PreviewMode = ({
               <span>{element.content || ''}</span>
             )}
           </div>
-        )}
+          );
+        })()}
         
         {element.type === 'image' && element.imageUrl && (
           <img

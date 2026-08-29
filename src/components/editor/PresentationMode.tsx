@@ -556,7 +556,10 @@ export const PresentationMode = ({
     const colors = ['#06b6d4','#ef4444','#f59e0b','#10b981','#3b82f6','#8b5cf6','#ec4899','#84cc16'];
 
     switch (element.type) {
-      case 'text':
+      case 'text': {
+        const contentText = element.content || '';
+        const hasArabic = /[\u0600-\u06FF\u0750-\u077F\u08A0-\u08FF\uFB50-\uFDFF\uFE70-\uFEFF]/.test(contentText);
+        const textDir = hasArabic ? 'rtl' : 'ltr';
         return (
           <div
             style={{
@@ -564,7 +567,7 @@ export const PresentationMode = ({
               fontWeight: element.fontWeight,
               fontStyle: element.fontStyle || 'normal',
               color: element.color,
-              textAlign: element.textAlign,
+              textAlign: element.textAlign || (textDir === 'rtl' ? 'right' : 'left'),
               textDecoration: element.textDecoration,
               textTransform: element.textTransform || 'none',
               lineHeight: element.lineHeight || 1.5,
@@ -579,6 +582,8 @@ export const PresentationMode = ({
               display: 'flex',
               flexDirection: 'column' as const,
               justifyContent: element.verticalAlign === 'middle' ? 'center' : element.verticalAlign === 'bottom' ? 'flex-end' : 'flex-start',
+              direction: textDir,
+              unicodeBidi: 'embed',
             }}
           >
             <span style={{ display: 'block', width: '100%' }}>
@@ -602,6 +607,7 @@ export const PresentationMode = ({
             </span>
           </div>
         );
+      }
       case 'shape':
         if (element.shapeType === 'arrow') {
           return <svg viewBox="0 0 100 50" style={{ width: '100%', height: '100%' }}><polygon points="0,20 70,20 70,0 100,25 70,50 70,30 0,30" fill={element.backgroundColor || '#3b82f6'} /></svg>;
